@@ -38,10 +38,23 @@
 
   window.addEventListener("message", function (event) {
     if (event.origin !== origin) return;
-    var data = event.data;
-    if (!data || data.type !== "garant-calc-height") return;
     if (event.source !== iframe.contentWindow) return;
-    var height = parseInt(data.height, 10);
-    if (height > 0) iframe.style.height = height + 24 + "px";
+    var data = event.data;
+    if (!data) return;
+
+    if (data.type === "garant-calc-height") {
+      var height = parseInt(data.height, 10);
+      if (height > 0) iframe.style.height = height + 24 + "px";
+      return;
+    }
+
+    // Смена шага мастера: подтягиваем виджет в зону видимости,
+    // иначе на длинной странице пользователь остаётся смотреть в пустоту.
+    if (data.type === "garant-calc-scroll") {
+      var box = iframe.getBoundingClientRect();
+      if (box.top < 0 || box.top > window.innerHeight * 0.5) {
+        iframe.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   });
 })();

@@ -1,10 +1,11 @@
 /**
- * Виджет калькулятора неустойки по 214-ФЗ.
+ * Виджет калькулятора неустойки по 214-ФЗ — пошаговый мастер.
  *
  * Без сборки и без зависимостей: файл кладётся рядом с index.html и
  * работает как отдельная страница или внутри iframe на сайте.
  *
- * Базовый адрес API берётся из window.CALC_API_BASE, иначе — текущий домен.
+ * Настройки: window.CALC_API_BASE, window.CALC_POLICY_URL,
+ * window.CALC_POLICY_VERSION либо те же значения в query-параметрах.
  */
 (function () {
   "use strict";
@@ -14,10 +15,35 @@
   var POLICY_URL = window.CALC_POLICY_URL || query.get("policy") || "/policy";
   var POLICY_VERSION = window.CALC_POLICY_VERSION || query.get("policy_version") || "1.0";
 
-  var state = { mode: "delay", calculationId: null };
+  var LAST_STEP = 4;
+  var state = { mode: null, step: 1, calculationId: null, rateBannerShown: false };
 
   function $(id) { return document.getElementById(id); }
+  function all(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
   function on(el, event, handler) { if (el) el.addEventListener(event, handler); }
+
+  function icon(name) { return '<svg><use href="#i-' + name + '"/></svg>'; }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // --- тема ----------------------------------------------------------------
+
+  function currentTheme() {
+    var explicit = document.documentElement.getAttribute("data-theme");
+    if (explicit) return explicit;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark" : "light";
+  }
+
+  function toggleTheme() {
+    var next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("calc-theme", next); } catch (e) { /* приватный режим */ }
+  }
 
   // --- ввод сумм -----------------------------------------------------------
 
@@ -26,55 +52,50 @@
   }
 
   function groupDigits(digits) {
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
-  /** '8 500 000' -> '8500000'; пустая строка -> null */
+  /** '8 500 000' -> '8500000'; пустое поле -> null */
   function readMoney(id) {
     var digits = digitsOnly($(id) && $(id).value);
     return digits ? digits : null;
   }
 
   function readRate(id) {
-    var raw = ($(id) && $(id).value || "").replace(",", ".").replace(/[^\d.]/g, "");
+    var raw = (($(id) && $(id).value) || "").replace(",", ".").replace(/[^\d.]/g, "");
     return raw ? raw : null;
   }
 
   function attachMoneyFormatting(input) {
     on(input, "input", function () {
-      var caretFromEnd = input.value.length - input.selectionStart;
+      var fromEnd = input.value.length - input.selectionStart;
       input.value = groupDigits(digitsOnly(input.value));
-      var position = Math.max(0, input.value.length - caretFromEnd);
+      var position = Math.max(0, input.value.length - fromEnd);
       try { input.setSelectionRange(position, position); } catch (e) { /* не критично */ }
     });
   }
 
-  // --- ошибки полей --------------------------------------------------------
+  // --- сообщения -----------------------------------------------------------
 
-  function clearErrors(form) {
-    var nodes = form.querySelectorAll("[data-error-for]");
-    for (var i = 0; i < nodes.length; i++) nodes[i].textContent = "";
-    $("form-error").innerHTML = "";
+  function clearErrors() {
+    all("[data-error-for]").forEach(function (node) { node.textContent = ""; });
   }
 
   function setError(fieldId, message) {
     var node = document.querySelector('[data-error-for="' + fieldId + '"]');
     if (node) node.textContent = message;
+    return false;
   }
 
-  function banner(target, kind, title, text) {
-    var html =
-      '<div class="banner banner--' + kind + '">' +
-      (title ? "<strong>" + escapeHtml(title) + "</strong>" : "") +
-      escapeHtml(text) +
-      "</div>";
-    $(target).innerHTML = html;
+  function noteHtml(kind, title, text) {
+    var symbol = kind === "ok" ? "ok" : "alert";
+    return '<div class="note note--' + kind + '">' + icon(symbol) +
+      '<div class="note__body">' + (title ? "<strong>" + escapeHtml(title) + "</strong>" : "") +
+      escapeHtml(text) + "</div></div>";
   }
 
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+  function showNote(target, kind, title, text) {
+    $(target).innerHTML = noteHtml(kind, title, text);
   }
 
   // --- запросы -------------------------------------------------------------
@@ -100,115 +121,158 @@
     });
   }
 
-  // --- вкладки -------------------------------------------------------------
+  // --- навигация по шагам --------------------------------------------------
 
-  function switchMode(mode) {
-    state.mode = mode;
-    var tabs = document.querySelectorAll(".calc__tab");
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].setAttribute("aria-selected", String(tabs[i].dataset.mode === mode));
+  function applyModeVisibility() {
+    all("[data-mode-panel]").forEach(function (panel) {
+      panel.hidden = panel.dataset.modePanel !== state.mode;
+    });
+
+    var isDelay = state.mode === "delay";
+    $("s2-title").textContent = isDelay ? "Суммы по договору" : "Суммы по недостаткам";
+    $("s2-hint").textContent = isDelay
+      ? "Цену возьмите из договора участия в долевом строительстве."
+      : "Цифры возьмите из заключения эксперта.";
+    $("s3-title").textContent = isDelay ? "Сроки передачи" : "Сроки по требованию";
+    $("s3-hint").textContent = isDelay
+      ? "По этим датам считается период просрочки."
+      : "Просрочка считается после истечения срока на удовлетворение требования.";
+
+    var firstOption = $("a-rate-mode").options[0];
+    firstOption.textContent = isDelay
+      ? "На день исполнения обязательства по договору"
+      : "На дату окончания срока на удовлетворение требования";
+  }
+
+  function renderSteps() {
+    all(".step").forEach(function (section) {
+      section.dataset.active = String(Number(section.dataset.step) === state.step);
+    });
+
+    $("steps-fill").style.width = (state.step / LAST_STEP * 100) + "%";
+    all("#steps-list li").forEach(function (item) {
+      var index = Number(item.dataset.step);
+      item.dataset.state = index === state.step ? "current" : (index < state.step ? "done" : "");
+    });
+
+    notifyHeight();
+  }
+
+  function goTo(step) {
+    state.step = Math.min(LAST_STEP, Math.max(1, step));
+    renderSteps();
+    if (window.parent === window) {
+      $("calc").scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.parent.postMessage({ type: "garant-calc-scroll" }, "*");
     }
-    $("form-delay").hidden = mode !== "delay";
-    $("form-defects").hidden = mode !== "defects";
-    $("result").hidden = true;
-    $("form-error").innerHTML = "";
+  }
+
+  // --- валидация шагов -----------------------------------------------------
+
+  function validateStep(step) {
+    clearErrors();
+
+    if (step === 1) {
+      if (!state.mode) {
+        showNote("global-note", "error", "", "Выберите, с какой ситуацией вы пришли.");
+        return false;
+      }
+      $("global-note").innerHTML = "";
+      return true;
+    }
+
+    if (step === 2) {
+      if (state.mode === "delay") {
+        return readMoney("d-price") ? true : setError("d-price", "Укажите цену договора");
+      }
+      return readMoney("f-repair") ? true : setError("f-repair", "Укажите стоимость устранения");
+    }
+
+    if (step === 3) {
+      var ok = true;
+      if (state.mode === "delay") {
+        if (!$("d-due").value) ok = setError("d-due", "Укажите срок передачи по договору");
+        if ($("d-transferred").checked) {
+          if (!$("d-actual").value) ok = setError("d-actual", "Укажите дату передачи");
+          else if ($("d-due").value && $("d-actual").value < $("d-due").value) {
+            setError("d-actual", "Передача раньше срока — просрочки нет");
+          }
+        }
+      } else {
+        if (!$("f-demand").value) ok = setError("f-demand", "Укажите дату вручения требования");
+        if ($("f-satisfied").checked && !$("f-satisfied-date").value) {
+          ok = setError("f-satisfied-date", "Укажите дату удовлетворения");
+        }
+      }
+      return ok;
+    }
+
+    return true;
   }
 
   // --- сбор данных ---------------------------------------------------------
 
-  function expenses(prefix) {
+  function expenses() {
     var items = [];
-    var duty = readMoney(prefix + "-duty");
-    var lawyer = readMoney(prefix + "-lawyer");
+    var duty = readMoney("a-duty");
+    var lawyer = readMoney("a-lawyer");
     if (duty) items.push({ title: "Госпошлина", amount: duty, code: "duty" });
     if (lawyer) items.push({ title: "Расходы на представителя", amount: lawyer, code: "lawyer" });
     return items;
   }
 
-  function commonExtras(prefix) {
-    var mode = $(prefix + "-rate-mode").value;
-    return {
-      rate_mode: mode,
-      manual_rate: mode === "manual" ? readRate(prefix + "-manual-rate") : null,
-      claim_date: mode === "on_claim_date" ? ($(prefix + "-claim-date").value || null) : null,
-      moral_harm: readMoney(prefix + "-moral") || "0",
-      include_consumer_penalty: $(prefix + "-penalty").checked,
-      expenses: expenses(prefix)
-    };
-  }
-
-  function collectDelay() {
-    var errors = 0;
-    var price = readMoney("d-price");
-    var due = $("d-due").value;
-    if (!price) { setError("d-price", "Укажите цену договора"); errors++; }
-    if (!due) { setError("d-due", "Укажите срок передачи по договору"); errors++; }
-
-    var actual = null;
-    if ($("d-transferred").checked) {
-      actual = $("d-actual").value;
-      if (!actual) { setError("d-actual", "Укажите дату передачи"); errors++; }
-      else if (due && actual < due) {
-        setError("d-actual", "Передача раньше срока — просрочки нет");
-      }
-    }
-    if (errors) return null;
-
+  function advanced() {
+    var mode = $("a-rate-mode").value;
     var payload = {
-      contract_price: price,
-      due_date: due,
-      actual_date: actual,
-      is_individual: $("d-party").value === "individual",
+      rate_mode: mode,
+      moral_harm: readMoney("a-moral") || "0",
+      include_consumer_penalty: $("a-penalty").checked,
+      expenses: expenses(),
       source: "widget"
     };
-    var extras = commonExtras("d");
-    for (var key in extras) if (extras[key] !== null) payload[key] = extras[key];
+    if (mode === "manual") payload.manual_rate = readRate("a-manual-rate");
+    if (mode === "on_claim_date") payload.claim_date = $("a-claim-date").value || null;
     return payload;
   }
 
-  function collectDefects() {
-    var errors = 0;
-    var repair = readMoney("f-repair");
-    var demand = $("f-demand").value;
-    if (!repair) { setError("f-repair", "Укажите стоимость устранения"); errors++; }
-    if (!demand) { setError("f-demand", "Укажите дату вручения требования"); errors++; }
-
-    var satisfied = null;
-    if ($("f-satisfied").checked) {
-      satisfied = $("f-satisfied-date").value;
-      if (!satisfied) { setError("f-satisfied-date", "Укажите дату удовлетворения"); errors++; }
+  function buildPayload() {
+    var payload = advanced();
+    if (state.mode === "delay") {
+      payload.contract_price = readMoney("d-price");
+      payload.due_date = $("d-due").value;
+      payload.actual_date = $("d-transferred").checked ? $("d-actual").value : null;
+      payload.is_individual = $("d-party").value === "individual";
+    } else {
+      payload.repair_cost = readMoney("f-repair");
+      payload.demand_served_date = $("f-demand").value;
+      payload.satisfied_date = $("f-satisfied").checked ? $("f-satisfied-date").value : null;
+      payload.expertise_cost = readMoney("f-expertise") || "0";
+      payload.include_repair_cost_in_total = $("a-include-repair").checked;
     }
-    if (errors) return null;
-
-    var payload = {
-      repair_cost: repair,
-      demand_served_date: demand,
-      satisfied_date: satisfied,
-      expertise_cost: readMoney("f-expertise") || "0",
-      include_repair_cost_in_total: $("f-include-repair").checked,
-      source: "widget"
-    };
-    var extras = commonExtras("f");
-    for (var key in extras) if (extras[key] !== null) payload[key] = extras[key];
     return payload;
   }
 
   // --- вывод результата ----------------------------------------------------
 
+  function cell(label, value, extraClass) {
+    return '<td data-label="' + escapeHtml(label) + '"' +
+      (extraClass ? ' class="' + extraClass + '"' : "") + ">" + value + "</td>";
+  }
+
   function renderSegments(segments) {
-    var block = $("r-segments-block");
-    block.hidden = segments.length === 0;
+    $("r-segments-block").hidden = segments.length === 0;
     $("r-segments").innerHTML = segments.map(function (segment) {
       var capped = segment.rate_before_cap
         ? '<span class="sub">ограничена с ' + escapeHtml(segment.rate_before_cap) + "% — " +
           escapeHtml(segment.cap_basis || "") + "</span>"
         : "";
       return "<tr>" +
-        "<td>" + escapeHtml(segment.start_display) + " — " + escapeHtml(segment.end_display) + "</td>" +
-        "<td>" + segment.days + "</td>" +
-        "<td>" + escapeHtml(segment.rate_display) + capped + "</td>" +
-        "<td>" + escapeHtml(segment.formula) + "</td>" +
-        '<td class="num">' + escapeHtml(segment.amount_display) + "</td>" +
+        cell("Период", escapeHtml(segment.start_display) + " — " + escapeHtml(segment.end_display)) +
+        cell("Дней", segment.days) +
+        cell("Ставка", escapeHtml(segment.rate_display) + capped) +
+        cell("Расчёт", '<span class="formula">' + escapeHtml(segment.formula) + "</span>") +
+        cell("Сумма, ₽", escapeHtml(segment.amount_display), "num") +
         "</tr>";
     }).join("");
   }
@@ -217,9 +281,9 @@
     $("r-excluded-block").hidden = excluded.length === 0;
     $("r-excluded").innerHTML = excluded.map(function (item) {
       return "<tr>" +
-        "<td>" + escapeHtml(item.start_display) + " — " + escapeHtml(item.end_display) + "</td>" +
-        "<td>" + item.days + "</td>" +
-        "<td>" + escapeHtml(item.basis) + "</td>" +
+        cell("Период", escapeHtml(item.start_display) + " — " + escapeHtml(item.end_display)) +
+        cell("Дней", item.days) +
+        cell("Основание", escapeHtml(item.basis)) +
         "</tr>";
     }).join("");
   }
@@ -228,14 +292,14 @@
     var rows = lines.map(function (line) {
       var note = line.note ? '<span class="sub">' + escapeHtml(line.note) + "</span>" : "";
       return "<tr>" +
-        "<td>" + escapeHtml(line.title) + note + "</td>" +
-        "<td>" + escapeHtml(line.basis || "") + "</td>" +
-        '<td class="num">' + escapeHtml(line.amount_display) + "</td>" +
+        cell("Требование", escapeHtml(line.title) + note) +
+        cell("Основание", escapeHtml(line.basis || "")) +
+        cell("Сумма, ₽", escapeHtml(line.amount_display), "num") +
         "</tr>";
     });
     rows.push(
-      '<tr class="total"><td colspan="2">Итого</td><td class="num">' +
-      escapeHtml(totalDisplay) + "</td></tr>"
+      '<tr class="grand">' + cell("", "Итого") + cell("", "") +
+      cell("Сумма, ₽", escapeHtml(totalDisplay), "num") + "</tr>"
     );
     $("r-lines").innerHTML = rows.join("");
   }
@@ -244,16 +308,15 @@
     var blocks = [];
     if (result.warnings && result.warnings.length) {
       blocks.push(
-        '<div class="banner banner--warn"><strong>Юридические параметры не подтверждены</strong>' +
+        '<div class="note note--warn">' + icon("alert") +
+        '<div class="note__body"><strong>Юридические параметры не подтверждены</strong>' +
         result.warnings.map(escapeHtml).join("<br>") +
-        "<br>Расчёт предварительный, перед подачей документов его проверит юрист.</div>"
+        "<br>Расчёт предварительный: перед подачей документов его проверит юрист.</div></div>"
       );
     }
-    // Если предупреждение о ставке уже висит над формой, не дублируем его.
     var rate = result.rate_status;
-    if (rate && rate.is_stale && rate.warning && !$("rate-banner").innerHTML) {
-      blocks.push('<div class="banner banner--warn"><strong>Ставка ЦБ из локальной копии</strong>' +
-        escapeHtml(rate.warning) + "</div>");
+    if (rate && rate.is_stale && rate.warning && !state.rateBannerShown) {
+      blocks.push(noteHtml("warn", "Ставка ЦБ из локальной копии", rate.warning));
     }
     $("r-warnings").innerHTML = blocks.join("");
   }
@@ -265,7 +328,7 @@
     var period = result.period || {};
     $("r-period").textContent = period.start_display
       ? "Период просрочки: " + period.start_display + " — " + period.end_display +
-        ", засчитано " + period.days_display
+        " · засчитано " + period.days_display
       : "Просрочка не начислена";
 
     renderWarnings(result);
@@ -280,56 +343,47 @@
       .map(function (note) { return "<li>" + escapeHtml(note) + "</li>"; }).join("");
     $("r-disclaimer").textContent = result.disclaimer || "";
 
-    $("result").hidden = false;
-    $("lead").hidden = true;
+    $("form-lead").hidden = false;
     $("lead-status").innerHTML = "";
     $("btn-print").disabled = !state.calculationId;
-    notifyHeight();
-    $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    goTo(4);
   }
 
-  // --- отправка форм -------------------------------------------------------
+  function calculate() {
+    if (!validateStep(3)) { notifyHeight(); return; }
 
-  function submitCalculation(event, form, collect, path) {
-    event.preventDefault();
-    clearErrors(form);
-    var payload = collect();
-    if (!payload) { notifyHeight(); return; }
-
-    var button = form.querySelector('button[type="submit"]');
+    var button = $("btn-calc");
     button.disabled = true;
-    button.textContent = "Считаем…";
+    button.innerHTML = "Считаем…";
 
-    postJson(path, payload)
+    var path = state.mode === "delay" ? "/api/v1/calc/delay" : "/api/v1/calc/defects";
+    postJson(path, buildPayload())
       .then(renderResult)
       .catch(function (error) {
-        banner("form-error", "error", "Не удалось рассчитать", error.message);
-        $("result").hidden = true;
+        showNote("global-note", "error", "Не удалось рассчитать", error.message);
       })
       .then(function () {
         button.disabled = false;
-        button.textContent = "Рассчитать";
+        button.innerHTML = "Рассчитать " + icon("right");
         notifyHeight();
       });
   }
 
+  // --- заявка --------------------------------------------------------------
+
   function submitLead(event) {
     event.preventDefault();
-    var form = $("form-lead");
-    clearErrors(form);
+    clearErrors();
 
-    var errors = 0;
     var name = $("l-name").value.trim();
     var phone = $("l-phone").value.trim();
-    if (name.length < 2) { setError("l-name", "Укажите имя"); errors++; }
-    if (digitsOnly(phone).length < 10) { setError("l-phone", "Укажите телефон"); errors++; }
-    if (!$("l-consent").checked) {
-      setError("l-consent", "Без согласия мы не можем принять заявку");
-      errors++;
-    }
-    if (errors) { notifyHeight(); return; }
+    var ok = true;
+    if (name.length < 2) ok = setError("l-name", "Укажите имя");
+    if (digitsOnly(phone).length < 10) ok = setError("l-phone", "Укажите телефон");
+    if (!$("l-consent").checked) ok = setError("l-consent", "Без согласия мы не можем принять заявку");
+    if (!ok) { notifyHeight(); return; }
 
-    var button = $("btn-lead-submit");
+    var button = $("btn-lead");
     button.disabled = true;
     button.textContent = "Отправляем…";
 
@@ -339,7 +393,6 @@
       topic: state.mode === "delay" ? "neustoyka" : "defects",
       region: $("l-region").value,
       project: $("l-project").value.trim() || null,
-      comment: $("l-comment").value.trim() || null,
       calculation_id: state.calculationId,
       consent: true,
       consent_policy_version: POLICY_VERSION,
@@ -349,11 +402,11 @@
     })
       .then(function () {
         $("form-lead").hidden = true;
-        banner("lead-status", "ok", "Заявка отправлена",
+        showNote("lead-status", "ok", "Заявка отправлена",
           "Юрист свяжется с вами и разберёт расчёт. Обычно перезваниваем в течение рабочего дня.");
       })
       .catch(function (error) {
-        banner("lead-status", "error", "Не удалось отправить заявку", error.message);
+        showNote("lead-status", "error", "Не удалось отправить заявку", error.message);
       })
       .then(function () {
         button.disabled = false;
@@ -368,9 +421,9 @@
     request("/api/v1/rate", {})
       .then(function (status) {
         if (status.is_stale && status.warning) {
-          banner("rate-banner", "warn", "Ключевая ставка требует проверки", status.warning);
-        } else {
-          $("rate-banner").innerHTML = "";
+          state.rateBannerShown = true;
+          showNote("global-note", "warn", "Ключевая ставка требует проверки", status.warning);
+          notifyHeight();
         }
       })
       .catch(function () { /* виджет должен работать и без этого запроса */ });
@@ -378,22 +431,41 @@
 
   // --- высота во встроенном режиме ----------------------------------------
 
+  var lastHeight = 0;
   function notifyHeight() {
     if (window.parent === window) return;
-    var height = document.documentElement.scrollHeight;
+    var height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+    if (height === lastHeight) return;
+    lastHeight = height;
     window.parent.postMessage({ type: "garant-calc-height", height: height }, "*");
   }
 
   // --- инициализация -------------------------------------------------------
 
   function init() {
-    var tabs = document.querySelectorAll(".calc__tab");
-    for (var i = 0; i < tabs.length; i++) {
-      on(tabs[i], "click", function (event) { switchMode(event.currentTarget.dataset.mode); });
-    }
+    on($("theme-toggle"), "click", toggleTheme);
 
-    var moneyInputs = document.querySelectorAll('input[inputmode="numeric"]');
-    for (var j = 0; j < moneyInputs.length; j++) attachMoneyFormatting(moneyInputs[j]);
+    all('input[inputmode="numeric"]').forEach(attachMoneyFormatting);
+
+    all('input[name="mode"]').forEach(function (input) {
+      on(input, "change", function () {
+        state.mode = input.value;
+        $("global-note").innerHTML = "";
+        applyModeVisibility();
+        notifyHeight();
+      });
+    });
+
+    all("[data-next]").forEach(function (button) {
+      on(button, "click", function () {
+        if (validateStep(state.step)) goTo(state.step + 1);
+        else notifyHeight();
+      });
+    });
+    all("[data-back]").forEach(function (button) {
+      on(button, "click", function () { goTo(state.step - 1); });
+    });
+    on($("btn-calc"), "click", calculate);
 
     on($("d-transferred"), "change", function () {
       $("d-actual-wrap").hidden = !this.checked;
@@ -404,44 +476,46 @@
       notifyHeight();
     });
 
-    var rateSelects = document.querySelectorAll("[data-rate-mode]");
-    for (var k = 0; k < rateSelects.length; k++) {
-      on(rateSelects[k], "change", function (event) {
-        var form = event.currentTarget.closest("form");
-        var conditionals = form.querySelectorAll("[data-show-for]");
-        for (var m = 0; m < conditionals.length; m++) {
-          conditionals[m].hidden = conditionals[m].dataset.showFor !== event.currentTarget.value;
-        }
-        notifyHeight();
+    on($("a-rate-mode"), "change", function () {
+      var value = this.value;
+      all("[data-show-for]").forEach(function (node) {
+        node.hidden = node.dataset.showFor !== value;
       });
-    }
-
-    on($("form-delay"), "submit", function (event) {
-      submitCalculation(event, $("form-delay"), collectDelay, "/api/v1/calc/delay");
-    });
-    on($("form-defects"), "submit", function (event) {
-      submitCalculation(event, $("form-defects"), collectDefects, "/api/v1/calc/defects");
-    });
-
-    on($("btn-lead"), "click", function () {
-      $("lead").hidden = false;
-      $("l-name").focus();
       notifyHeight();
     });
+
+    // Enter в поле продвигает мастер, а не отправляет форму раньше времени.
+    all(".step input").forEach(function (input) {
+      on(input, "keydown", function (event) {
+        if (event.key !== "Enter" || input.closest("#form-lead")) return;
+        event.preventDefault();
+        if (state.step === 3) calculate();
+        else if (validateStep(state.step)) goTo(state.step + 1);
+      });
+    });
+
+    on($("form-lead"), "submit", submitLead);
     on($("btn-print"), "click", function () {
       if (!state.calculationId) return;
       window.open(API + "/api/v1/calc/" + state.calculationId + "/print", "_blank", "noopener");
     });
-    on($("form-lead"), "submit", submitLead);
 
     var policyLink = $("l-policy-link");
     if (policyLink) policyLink.setAttribute("href", POLICY_URL);
 
-    if (query.get("mode") === "defects") switchMode("defects");
-
+    var preset = query.get("mode");
+    if (preset === "delay" || preset === "defects") {
+      var input = document.querySelector('input[name="mode"][value="' + preset + '"]');
+      if (input) { input.checked = true; state.mode = preset; }
+    }
+    applyModeVisibility();
+    renderSteps();
     loadRateStatus();
-    notifyHeight();
+
     window.addEventListener("resize", notifyHeight);
+    if (window.ResizeObserver) {
+      new ResizeObserver(notifyHeight).observe(document.documentElement);
+    }
   }
 
   if (document.readyState === "loading") {

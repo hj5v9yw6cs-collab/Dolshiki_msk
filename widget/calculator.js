@@ -113,13 +113,26 @@
     });
   }
 
-  function postJson(path, payload) {
+  /**
+   * Единственная точка обращения к бэкенду.
+   *
+   * Если на странице объявлен window.CALC_LOCAL_ENGINE, запросы уходят в него
+   * вместо сети. Так работает автономная демо-версия: интерфейс тот же самый,
+   * а расчёт выполняется на месте. В боевом виджете хук не объявлен.
+   */
+  function callApi(path, payload) {
+    if (typeof window.CALC_LOCAL_ENGINE === "function") {
+      return window.CALC_LOCAL_ENGINE(path, payload);
+    }
+    if (payload === undefined) return request(path, {});
     return request(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
   }
+
+  function postJson(path, payload) { return callApi(path, payload); }
 
   // --- навигация по шагам --------------------------------------------------
 
@@ -418,7 +431,7 @@
   // --- состояние ставки ----------------------------------------------------
 
   function loadRateStatus() {
-    request("/api/v1/rate", {})
+    callApi("/api/v1/rate")
       .then(function (status) {
         if (status.is_stale && status.warning) {
           state.rateBannerShown = true;
@@ -497,6 +510,10 @@
     on($("form-lead"), "submit", submitLead);
     on($("btn-print"), "click", function () {
       if (!state.calculationId) return;
+      if (typeof window.CALC_LOCAL_PRINT === "function") {
+        window.CALC_LOCAL_PRINT(state.calculationId);
+        return;
+      }
       window.open(API + "/api/v1/calc/" + state.calculationId + "/print", "_blank", "noopener");
     });
 

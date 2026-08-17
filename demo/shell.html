@@ -1,0 +1,78 @@
+<title>Калькулятор неустойки 214-ФЗ</title>
+<style>
+{{STYLES}}
+</style>
+<script>
+  // Тема применяется до первой отрисовки, чтобы не мигало светлым.
+  try {
+    var savedTheme = localStorage.getItem("calc-theme");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    }
+  } catch (e) { /* приватный режим — остаёмся на системной теме */ }
+</script>
+
+<div class="shell">
+
+  <header class="shell__head">
+    <span class="shell__tag">Демо · расчёт в браузере</span>
+    <p class="shell__lead">
+      Это <strong>тот же самый виджет</strong>, что встраивается на сайт, — те же файлы интерфейса.
+      Отличие одно: считает не сервер, а браузер, поэтому страницу можно открыть откуда угодно.
+      Цифры настоящие: расчётное ядро сверено с серверным на 814 случаях, расхождений нет.
+    </p>
+
+    <div class="presets">
+      <div class="presets__label">Заполнить примером</div>
+      <div class="presets__row">
+        <button type="button" class="preset" data-preset="long">Просрочка 3,5 года</button>
+        <button type="button" class="preset" data-preset="ongoing">Квартиру так и не передали</button>
+        <button type="button" class="preset" data-preset="defects">Недостатки отделки</button>
+        <button type="button" class="preset" data-preset="entity">Дольщик — юрлицо</button>
+      </div>
+    </div>
+  </header>
+
+{{WIDGET}}
+
+  <section class="shell__foot">
+    <h2>Что здесь по-настоящему, а что заглушка</h2>
+    <ul>
+      <li data-kind="real"><span><strong>Расчёт настоящий.</strong> Мораторные периоды вычитаются,
+        ставка ЦБ берётся на нужную дату, суммы считаются в копейках без ошибок округления.
+        Нажмите «Расчёт для суда» — увидите таблицу, которая идёт приложением к иску.</span></li>
+      <li data-kind="real"><span><strong>Интерфейс настоящий.</strong> Шаги, проверки полей,
+        переключатель темы, поведение на телефоне — всё как в рабочей версии.</span></li>
+      <li data-kind="stub"><span><strong>Заявка никуда не уходит.</strong> Форма показывает
+        состояние «отправлено», но письма и уведомления в Telegram здесь отключены.</span></li>
+      <li data-kind="stub"><span><strong>Ставка ЦБ из встроенной копии.</strong> В рабочей версии
+        она обновляется с cbr.ru по расписанию; здесь синхронизации нет.</span></li>
+      <li data-kind="stub"><span><strong>Юридические параметры не подтверждены.</strong> Мораторные
+        периоды и размер штрафа внесены как черновик — предупреждение об этом виджет показывает
+        намеренно и перестанет, когда ваш юрист сверит их с первоисточниками.</span></li>
+    </ul>
+  </section>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden role="dialog" aria-modal="true" aria-label="Расчёт для суда">
+  <div class="sheet">
+    <div class="sheet__bar">
+      <span class="sheet__hint">В рабочей версии открывается отдельной страницей и сохраняется в PDF печатью браузера.</span>
+      <button type="button" class="sheet__close" id="sheet-close">Закрыть</button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<script>
+{{ENGINE}}
+</script>
+<script>
+window.CALC_LEGAL_CONFIG = {{CONFIG}};
+</script>
+<script>
+{{GLUE}}
+</script>
+<script>
+{{CALCULATOR}}
+</script>

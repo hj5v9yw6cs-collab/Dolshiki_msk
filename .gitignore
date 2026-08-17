@@ -6,3 +6,4 @@ __pycache__/
 .env
 config/cbr-sync-state.json
 .pytest_cache/
+demo/dist/

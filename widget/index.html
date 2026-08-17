@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор неустойки по 214-ФЗ</title>
+<link rel="stylesheet" href="calculator.css">
+</head>
+<body class="calc-standalone">
+
+<div class="calc" id="calc">
+  <div class="calc__head">
+    <h1 class="calc__title">Калькулятор по 214-ФЗ</h1>
+    <p class="calc__subtitle">Расчёт с учётом мораторных периодов и изменений ключевой ставки ЦБ</p>
+  </div>
+
+  <div class="calc__tabs" role="tablist">
+    <button class="calc__tab" role="tab" id="tab-delay" aria-selected="true" data-mode="delay">Просрочка передачи</button>
+    <button class="calc__tab" role="tab" id="tab-defects" aria-selected="false" data-mode="defects">Недостатки отделки</button>
+  </div>
+
+  <div class="calc__body">
+    <div id="rate-banner"></div>
+
+    <!-- ================= Режим 1: просрочка передачи ================= -->
+    <form id="form-delay" novalidate>
+      <div class="calc__grid">
+        <div class="field">
+          <label for="d-price">Цена договора (ДДУ), ₽</label>
+          <input type="text" id="d-price" inputmode="numeric" autocomplete="off" placeholder="8 500 000">
+          <span class="error" data-error-for="d-price"></span>
+        </div>
+        <div class="field">
+          <label for="d-due">Срок передачи по договору</label>
+          <input type="date" id="d-due">
+          <span class="error" data-error-for="d-due"></span>
+        </div>
+        <div class="field field--wide">
+          <label class="check">
+            <input type="checkbox" id="d-transferred">
+            <span>Объект уже передан по акту</span>
+          </label>
+        </div>
+        <div class="field" id="d-actual-wrap" hidden>
+          <label for="d-actual">Дата фактической передачи</label>
+          <input type="date" id="d-actual">
+          <span class="error" data-error-for="d-actual"></span>
+        </div>
+        <div class="field">
+          <label for="d-party">Дольщик</label>
+          <select id="d-party">
+            <option value="individual">Физическое лицо (ставка в двойном размере)</option>
+            <option value="legal">Юридическое лицо</option>
+          </select>
+        </div>
+      </div>
+
+      <details class="calc__more">
+        <summary>Дополнительные параметры</summary>
+        <div class="calc__grid">
+          <div class="field">
+            <label for="d-rate-mode">Какую ставку применять</label>
+            <select id="d-rate-mode" data-rate-mode>
+              <option value="on_obligation_date">На день исполнения обязательства по договору</option>
+              <option value="on_actual_date">На дату фактической передачи</option>
+              <option value="on_claim_date">На дату подачи иска</option>
+              <option value="per_segment">По каждому периоду — свою действовавшую</option>
+              <option value="manual">Ввести вручную</option>
+            </select>
+          </div>
+          <div class="field" data-show-for="manual" hidden>
+            <label for="d-manual-rate">Ставка вручную, %</label>
+            <input type="text" id="d-manual-rate" inputmode="decimal" placeholder="16,5">
+          </div>
+          <div class="field" data-show-for="on_claim_date" hidden>
+            <label for="d-claim-date">Дата подачи иска</label>
+            <input type="date" id="d-claim-date">
+          </div>
+          <div class="field">
+            <label for="d-moral">Моральный вред (заявляемый), ₽</label>
+            <input type="text" id="d-moral" inputmode="numeric" placeholder="50 000">
+          </div>
+          <div class="field">
+            <label for="d-duty">Госпошлина, ₽</label>
+            <input type="text" id="d-duty" inputmode="numeric" placeholder="0">
+          </div>
+          <div class="field">
+            <label for="d-lawyer">Расходы на представителя, ₽</label>
+            <input type="text" id="d-lawyer" inputmode="numeric" placeholder="0">
+          </div>
+          <div class="field field--wide">
+            <label class="check">
+              <input type="checkbox" id="d-penalty" checked>
+              <span>Включить штраф в пользу потребителя</span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <div class="calc__actions">
+        <button type="submit" class="btn btn--primary">Рассчитать</button>
+      </div>
+    </form>
+
+    <!-- ================= Режим 2: недостатки отделки ================= -->
+    <form id="form-defects" novalidate hidden>
+      <div class="calc__grid">
+        <div class="field">
+          <label for="f-repair">Стоимость устранения недостатков, ₽</label>
+          <input type="text" id="f-repair" inputmode="numeric" placeholder="450 000">
+          <span class="hint">По заключению эксперта</span>
+          <span class="error" data-error-for="f-repair"></span>
+        </div>
+        <div class="field">
+          <label for="f-demand">Дата вручения требования застройщику</label>
+          <input type="date" id="f-demand">
+          <span class="error" data-error-for="f-demand"></span>
+        </div>
+        <div class="field field--wide">
+          <label class="check">
+            <input type="checkbox" id="f-satisfied">
+            <span>Требование удовлетворено</span>
+          </label>
+        </div>
+        <div class="field" id="f-satisfied-wrap" hidden>
+          <label for="f-satisfied-date">Дата удовлетворения</label>
+          <input type="date" id="f-satisfied-date">
+          <span class="error" data-error-for="f-satisfied-date"></span>
+        </div>
+        <div class="field">
+          <label for="f-expertise">Расходы на экспертизу, ₽</label>
+          <input type="text" id="f-expertise" inputmode="numeric" placeholder="45 000">
+        </div>
+      </div>
+
+      <details class="calc__more">
+        <summary>Дополнительные параметры</summary>
+        <div class="calc__grid">
+          <div class="field">
+            <label for="f-rate-mode">Какую ставку применять</label>
+            <select id="f-rate-mode" data-rate-mode>
+              <option value="on_obligation_date">На дату окончания срока на удовлетворение требования</option>
+              <option value="on_actual_date">На дату удовлетворения требования</option>
+              <option value="on_claim_date">На дату подачи иска</option>
+              <option value="per_segment">По каждому периоду — свою действовавшую</option>
+              <option value="manual">Ввести вручную</option>
+            </select>
+          </div>
+          <div class="field" data-show-for="manual" hidden>
+            <label for="f-manual-rate">Ставка вручную, %</label>
+            <input type="text" id="f-manual-rate" inputmode="decimal" placeholder="16,5">
+          </div>
+          <div class="field" data-show-for="on_claim_date" hidden>
+            <label for="f-claim-date">Дата подачи иска</label>
+            <input type="date" id="f-claim-date">
+          </div>
+          <div class="field">
+            <label for="f-moral">Моральный вред (заявляемый), ₽</label>
+            <input type="text" id="f-moral" inputmode="numeric" placeholder="20 000">
+          </div>
+          <div class="field">
+            <label for="f-duty">Госпошлина, ₽</label>
+            <input type="text" id="f-duty" inputmode="numeric" placeholder="0">
+          </div>
+          <div class="field">
+            <label for="f-lawyer">Расходы на представителя, ₽</label>
+            <input type="text" id="f-lawyer" inputmode="numeric" placeholder="0">
+          </div>
+          <div class="field field--wide">
+            <label class="check">
+              <input type="checkbox" id="f-penalty" checked>
+              <span>Включить штраф в пользу потребителя</span>
+            </label>
+          </div>
+          <div class="field field--wide">
+            <label class="check">
+              <input type="checkbox" id="f-include-repair" checked>
+              <span>Включить стоимость устранения в итоговую сумму</span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <div class="calc__actions">
+        <button type="submit" class="btn btn--primary">Рассчитать</button>
+      </div>
+    </form>
+
+    <div id="form-error"></div>
+
+    <!-- ================= Результат ================= -->
+    <section class="result" id="result" hidden aria-live="polite">
+      <div class="result__total">
+        <div>
+          <div class="result__total-label">Итого к взысканию</div>
+          <div class="result__total-value" id="r-total">— ₽</div>
+        </div>
+        <div class="result__period" id="r-period"></div>
+      </div>
+
+      <div id="r-warnings"></div>
+
+      <div id="r-segments-block" hidden>
+        <h3>Расчёт по периодам</h3>
+        <div class="table-wrap">
+          <table class="calc-table">
+            <thead>
+              <tr><th>Период</th><th>Дней</th><th>Ставка</th><th>Расчёт</th><th class="num">Сумма, ₽</th></tr>
+            </thead>
+            <tbody id="r-segments"></tbody>
+          </table>
+        </div>
+        <p class="note-list" id="r-rate-mode" style="list-style:none;padding-left:0"></p>
+      </div>
+
+      <div id="r-excluded-block" hidden>
+        <h3>Периоды, исключённые из расчёта</h3>
+        <div class="table-wrap">
+          <table class="calc-table">
+            <thead><tr><th>Период</th><th>Дней</th><th>Основание</th></tr></thead>
+            <tbody id="r-excluded"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>Состав требований</h3>
+      <div class="table-wrap">
+        <table class="calc-table">
+          <thead><tr><th>Требование</th><th>Основание</th><th class="num">Сумма, ₽</th></tr></thead>
+          <tbody id="r-lines"></tbody>
+        </table>
+      </div>
+
+      <ul class="note-list" id="r-notes"></ul>
+      <p class="disclaimer" id="r-disclaimer"></p>
+
+      <div class="calc__actions">
+        <button type="button" class="btn btn--primary" id="btn-lead">Получить детальный расчёт с юристом</button>
+        <button type="button" class="btn btn--ghost" id="btn-print">Скачать расчёт (PDF)</button>
+      </div>
+
+      <!-- ================= Заявка ================= -->
+      <div class="lead" id="lead" hidden>
+        <h3>Детальный расчёт и разбор ситуации</h3>
+        <p class="lead__sub">Юрист проверит расчёт, оценит перспективы и скажет, какие документы нужны. Расчёт прикрепим к заявке автоматически.</p>
+        <form id="form-lead" novalidate>
+          <div class="calc__grid">
+            <div class="field">
+              <label for="l-name">Имя</label>
+              <input type="text" id="l-name" autocomplete="name" placeholder="Как к вам обращаться">
+              <span class="error" data-error-for="l-name"></span>
+            </div>
+            <div class="field">
+              <label for="l-phone">Телефон</label>
+              <input type="tel" id="l-phone" autocomplete="tel" placeholder="+7 900 000-00-00">
+              <span class="error" data-error-for="l-phone"></span>
+            </div>
+            <div class="field">
+              <label for="l-region">Регион</label>
+              <select id="l-region">
+                <option value="msk">Москва и область</option>
+                <option value="spb">Санкт-Петербург и область</option>
+                <option value="kzn">Казань и Татарстан</option>
+                <option value="other">Другой регион</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="l-project">ЖК / объект</label>
+              <input type="text" id="l-project" placeholder="Название жилого комплекса">
+            </div>
+            <div class="field field--wide">
+              <label for="l-comment">Комментарий</label>
+              <textarea id="l-comment" rows="2" placeholder="Коротко о ситуации"></textarea>
+            </div>
+            <div class="field field--wide">
+              <label class="check">
+                <input type="checkbox" id="l-consent">
+                <span>Согласен на обработку персональных данных в соответствии с
+                  <a href="/policy" target="_blank" rel="noopener" id="l-policy-link">политикой конфиденциальности</a></span>
+              </label>
+              <span class="error" data-error-for="l-consent"></span>
+            </div>
+          </div>
+          <div class="lead__honey">
+            <label for="l-website">Не заполняйте это поле</label>
+            <input type="text" id="l-website" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="calc__actions">
+            <button type="submit" class="btn btn--primary" id="btn-lead-submit">Отправить заявку</button>
+          </div>
+        </form>
+        <!-- Статус вне формы: после успешной отправки форма скрывается -->
+        <div id="lead-status"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="calculator.js"></script>
+</body>
+</html>

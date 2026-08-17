@@ -1,0 +1,151 @@
+:root {
+  --bg: #ffffff;
+  --surface: #f6f7f9;
+  --surface-2: #eef1f5;
+  --border: #d9dee6;
+  --text: #16202e;
+  --muted: #5c6b7f;
+  --accent: #1f4e79;
+  --accent-hover: #16395a;
+  --accent-soft: #e8f0f8;
+  --warning-bg: #fff6e6;
+  --warning-border: #d99000;
+  --danger: #b02020;
+  --ok: #1d7a45;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(22, 32, 46, .08), 0 6px 20px rgba(22, 32, 46, .06);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body.calc-standalone {
+  margin: 0;
+  padding: 24px 16px;
+  background: var(--surface);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+}
+
+.calc {
+  max-width: 880px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.calc__head { padding: 20px 24px 0; }
+.calc__title { margin: 0 0 4px; font-size: 20px; font-weight: 650; }
+.calc__subtitle { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+
+.calc__tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 24px; }
+.calc__tab {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 550; color: var(--muted);
+  padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.calc__tab:hover { color: var(--text); }
+.calc__tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+.calc__body { padding: 20px 24px 24px; }
+
+.calc__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.calc__grid--full { grid-template-columns: 1fr; }
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field--wide { grid-column: 1 / -1; }
+.field > label { font-size: 13px; font-weight: 550; color: var(--muted); }
+.field input[type="text"],
+.field input[type="date"],
+.field input[type="tel"],
+.field input[type="email"],
+.field select,
+.field textarea {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+  width: 100%; min-width: 0;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: 2px solid var(--accent-soft); border-color: var(--accent);
+}
+.field .hint { font-size: 12px; color: var(--muted); }
+.field .error { font-size: 12px; color: var(--danger); }
+
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; }
+.check input { margin-top: 3px; flex: none; }
+
+.calc__more { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+.calc__more > summary {
+  cursor: pointer; font-weight: 550; color: var(--accent); font-size: 14px; list-style: none;
+}
+.calc__more > summary::-webkit-details-marker { display: none; }
+.calc__more > summary::before { content: "▸ "; }
+.calc__more[open] > summary::before { content: "▾ "; }
+.calc__more .calc__grid { margin-top: 14px; }
+
+.calc__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+
+.btn {
+  font: inherit; font-weight: 550; cursor: pointer; border-radius: 8px;
+  padding: 10px 18px; border: 1px solid transparent;
+}
+.btn--primary { background: var(--accent); color: #fff; }
+.btn--primary:hover { background: var(--accent-hover); }
+.btn--ghost { background: var(--bg); color: var(--accent); border-color: var(--border); }
+.btn--ghost:hover { background: var(--surface); }
+.btn:disabled { opacity: .55; cursor: progress; }
+
+.result { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 20px; }
+.result[hidden] { display: none; }
+
+.result__total {
+  background: var(--accent-soft); border: 1px solid #c9dcee; border-radius: var(--radius);
+  padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 6px 16px;
+  align-items: baseline; justify-content: space-between;
+}
+.result__total-label { font-size: 14px; color: var(--muted); }
+.result__total-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+.result__period { font-size: 13px; color: var(--muted); width: 100%; }
+
+.result h3 { font-size: 15px; margin: 20px 0 8px; }
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.calc-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 520px; }
+table.calc-table th, table.calc-table td {
+  border-bottom: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
+}
+table.calc-table th { background: var(--surface); font-weight: 600; color: var(--muted); white-space: nowrap; }
+table.calc-table td.num { text-align: right; white-space: nowrap; }
+table.calc-table tr.total td { font-weight: 700; background: var(--surface); border-top: 2px solid var(--border); }
+table.calc-table .sub { display: block; font-size: 12px; color: var(--muted); }
+
+.note-list { margin: 12px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.note-list li { margin-bottom: 4px; }
+
+.banner { border-radius: 8px; padding: 12px 14px; font-size: 13.5px; margin: 14px 0; }
+.banner--warn { background: var(--warning-bg); border-left: 3px solid var(--warning-border); }
+.banner--error { background: #fdeeee; border-left: 3px solid var(--danger); color: #7a1414; }
+.banner--ok { background: #eaf7ef; border-left: 3px solid var(--ok); }
+.banner strong { display: block; margin-bottom: 3px; }
+
+.disclaimer { margin-top: 16px; font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+.lead { margin-top: 20px; border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; background: var(--surface); }
+.lead[hidden] { display: none; }
+.lead h3 { margin: 0 0 4px; font-size: 16px; }
+.lead p.lead__sub { margin: 0 0 14px; font-size: 13.5px; color: var(--muted); }
+.lead__honey { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+@media (max-width: 620px) {
+  .calc__grid { grid-template-columns: 1fr; }
+  .calc__head, .calc__tabs, .calc__body { padding-left: 16px; padding-right: 16px; }
+  .result__total-value { font-size: 24px; }
+  .calc__tab { padding: 10px 8px; font-size: 14px; }
+}

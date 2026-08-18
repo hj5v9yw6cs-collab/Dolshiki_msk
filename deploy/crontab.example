@@ -1,0 +1,7 @@
+# Задачи на сервере. Установить: crontab -e
+#
+# Ключевая ставка ЦБ — раз в сутки утром.
+0 6 * * *  cd /opt/dolshiki/deploy && docker compose exec -T app python scripts/sync_rates.py >> /var/log/dolshiki-cbr.log 2>&1
+
+# Резервная копия базы — раз в сутки ночью.
+0 3 * * *  /opt/dolshiki/deploy/backup.sh >> /var/log/dolshiki-backup.log 2>&1

@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 import logging
-import os
 
 import httpx
+
+from .env import env
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ def build_message(lead) -> str:
 
 
 def notify_new_lead(lead) -> bool:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    token = env("TELEGRAM_BOT_TOKEN")
+    chat_id = env("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
         logger.info("Telegram не настроен — уведомление о заявке %s пропущено.", lead.id)
         return False

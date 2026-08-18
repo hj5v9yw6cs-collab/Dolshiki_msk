@@ -1,0 +1,20 @@
+# HTTPS выдаётся и продлевается автоматически.
+{$DOMAIN} {
+	encode gzip
+
+	# Заголовки безопасности: в системе персональные данные клиентов.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Виджет калькулятора встраивается на garantlc.ru, поэтому ему
+	# рамка из SAMEORIGIN не подходит — снимаем её только для него.
+	@widget path /widget/* /embed.js
+	header @widget -X-Frame-Options
+
+	reverse_proxy app:8000
+}

@@ -240,3 +240,46 @@ def test_config_changes_are_logged(api_client):
 def test_admin_endpoints_require_token(api_client):
     assert api_client.get("/api/v1/admin/legal-config").status_code == 401
     assert api_client.post("/api/v1/admin/rate/sync").status_code == 401
+
+
+# --- переменные окружения --------------------------------------------------
+
+
+def test_empty_env_variable_falls_back_to_default(monkeypatch):
+    """В .env переменную часто оставляют пустой — это должно значить
+    «взять значение по умолчанию», а не пустую строку."""
+    from app.env import env, env_list
+
+    monkeypatch.setenv("SOME_SETTING", "")
+    assert env("SOME_SETTING", "по умолчанию") == "по умолчанию"
+
+    monkeypatch.setenv("SOME_SETTING", "   ")
+    assert env("SOME_SETTING", "по умолчанию") == "по умолчанию"
+
+    monkeypatch.setenv("SOME_SETTING", " значение ")
+    assert env("SOME_SETTING", "по умолчанию") == "значение"
+
+    monkeypatch.delenv("SOME_SETTING")
+    assert env("SOME_SETTING", "по умолчанию") == "по умолчанию"
+
+
+def test_env_list_splits_and_drops_blanks(monkeypatch):
+    from app.env import env_list
+
+    monkeypatch.setenv("ORIGINS", "https://a.ru, https://b.ru ,")
+    assert env_list("ORIGINS") == ["https://a.ru", "https://b.ru"]
+
+    monkeypatch.setenv("ORIGINS", "")
+    assert env_list("ORIGINS", "https://default.ru") == ["https://default.ru"]
+
+
+def test_database_url_is_always_a_usable_url():
+    """Пустой DATABASE_URL в .env раньше ронял приложение на старте сервера:
+    create_engine("") падает. Теперь пустое значение равно отсутствующему.
+
+    Модуль здесь намеренно не перезагружается — это подменило бы движок
+    базы у всех остальных тестов."""
+    import app.db
+
+    assert app.db.DATABASE_URL
+    assert "://" in app.db.DATABASE_URL

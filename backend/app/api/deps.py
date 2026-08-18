@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from ..core.security import token_fingerprint
+from ..env import env
 from ..db import get_session
 
 
@@ -97,7 +97,7 @@ def current_actor(
     if not token:
         raise HTTPException(status_code=401, detail="Требуется вход в систему.")
 
-    admin_token = os.getenv("ADMIN_TOKEN", "").strip()
+    admin_token = env("ADMIN_TOKEN")
     if admin_token and token == admin_token:
         return Actor(role="manager")
 

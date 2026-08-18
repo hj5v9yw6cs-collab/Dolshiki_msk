@@ -16,10 +16,11 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import admin, auth, calc, cases, leads
+from .env import env, env_list
 from .core.legal_config import LegalConfigError, store
 from .db import init_db
 
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logging.basicConfig(level=env("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 WIDGET_DIR = Path(__file__).resolve().parents[2] / "widget"
@@ -58,11 +59,7 @@ app = FastAPI(
 
 # Виджет встраивается на garantlc.ru, поэтому кросс-доменные запросы нужны.
 # Список доменов задаётся переменной CORS_ORIGINS, по умолчанию — только локальная разработка.
-origins = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
-    if origin.strip()
-]
+origins = env_list("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

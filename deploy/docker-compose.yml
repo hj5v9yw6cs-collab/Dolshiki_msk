@@ -1,0 +1,40 @@
+# Развёртывание на одном сервере: приложение + автоматический HTTPS.
+#
+#   cd deploy && docker compose up -d
+#
+# Caddy сам получает и продлевает сертификат Let's Encrypt — отдельно
+# настраивать ничего не нужно, достаточно чтобы домен смотрел на сервер.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: ../backend/.env
+    volumes:
+      - app-data:/app/backend/data
+      - app-config:/app/backend/config
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?укажите DOMAIN в deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  app-data:
+  app-config:
+  caddy-data:
+  caddy-config:

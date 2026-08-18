@@ -28,7 +28,7 @@ router = APIRouter(tags=["Сайт"], include_in_schema=False)
 
 def site_origin() -> str:
     """Адрес сайта для canonical и карты сайта."""
-    return env("SITE_ORIGIN", "https://" + store.get().company.get("domain", "example.ru")).rstrip("/")
+    return env("SITE_ORIGIN", "https://" + store.get().company.get("domain", "dolshikirf.ru")).rstrip("/")
 
 
 def content() -> Content:

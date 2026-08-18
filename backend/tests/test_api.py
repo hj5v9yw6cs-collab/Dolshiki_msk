@@ -196,7 +196,7 @@ def test_admin_can_read_and_update_config(api_client):
     response = api_client.put(
         "/api/v1/admin/legal-config",
         headers=ADMIN,
-        json={"config": updated, "author": "lawyer@example.ru", "comment": "убрал мораторий"},
+        json={"config": updated, "author": "lawyer@dolshikirf.ru", "comment": "убрал мораторий"},
     )
 
     assert response.status_code == 200
@@ -212,7 +212,7 @@ def test_invalid_config_is_rejected_without_saving(api_client):
     response = api_client.put(
         "/api/v1/admin/legal-config",
         headers=ADMIN,
-        json={"config": broken, "author": "lawyer@example.ru"},
+        json={"config": broken, "author": "lawyer@dolshikirf.ru"},
     )
 
     assert response.status_code == 400
@@ -226,14 +226,14 @@ def test_config_changes_are_logged(api_client):
     api_client.put(
         "/api/v1/admin/legal-config",
         headers=ADMIN,
-        json={"config": payload, "author": "lawyer@example.ru", "comment": "правка текста"},
+        json={"config": payload, "author": "lawyer@dolshikirf.ru", "comment": "правка текста"},
     )
 
     history = api_client.get("/api/v1/admin/legal-config/history", headers=ADMIN).json()
 
     assert history["count"] >= 1
     latest = history["items"][0]
-    assert latest["author"] == "lawyer@example.ru"
+    assert latest["author"] == "lawyer@dolshikirf.ru"
     assert "правка текста" in latest["changed"]
 
 

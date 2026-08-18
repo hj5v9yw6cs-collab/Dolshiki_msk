@@ -3,7 +3,7 @@
 Три шага, каждый следующий — необязательный. Первый даёт пользу уже сегодня
 и не стоит ничего.
 
-## Шаг 1. Калькулятор на example.ru — 0 ₽
+## Шаг 1. Калькулятор на dolshikirf.ru — 0 ₽
 
 `site/dist/calculator.html` — один файл, которому не нужен ни сервер, ни база.
 Он считает прямо в браузере посетителя.
@@ -17,7 +17,7 @@
      whatsapp: "79171234567",           // без плюса и пробелов
      phone: "+7 917 123-45-67",
      telegram: "",
-     policy_url: "https://ваш-домен.ru/policy"
+     policy_url: "https://dolshikirf.ru/policy"
    };
    ```
 
@@ -27,9 +27,9 @@
    ./.venv/bin/python site/build.py
    ```
 
-3. Залейте `site/dist/calculator.html` на хостинг example.ru — туда же, где
+3. Залейте `site/dist/calculator.html` на хостинг dolshikirf.ru — туда же, где
    лежат остальные страницы. Получится адрес вида
-   `https://ваш-домен.ru/calculator.html`.
+   `https://dolshikirf.ru/calculator.html`.
 
 4. Поставьте ссылку на него в меню сайта.
 
@@ -64,8 +64,8 @@ ADMIN_TOKEN=придумайте-длинную-строку ../.venv/bin/uvicor
 Заведите сотрудников:
 
 ```bash
-./.venv/bin/python backend/scripts/create_user.py boss@example.ru "Фёдор Ильин" manager
-./.venv/bin/python backend/scripts/create_user.py irina@example.ru "Ирина Соколова" lawyer
+./.venv/bin/python backend/scripts/create_user.py boss@dolshikirf.ru "Фёдор Ильин" manager
+./.venv/bin/python backend/scripts/create_user.py irina@dolshikirf.ru "Ирина Соколова" lawyer
 ```
 
 Кабинет открывается по адресу `http://<адрес-компьютера>:8000/app/`.

@@ -109,15 +109,15 @@ cd backend && ../.venv/bin/python -m pytest -q
 
 ```html
 <div id="garant-calc"></div>
-<script src="https://calc.ваш-домен.ru/embed.js"
+<script src="https://dolshikirf.ru/embed.js"
         data-target="garant-calc"
-        data-policy-url="https://ваш-домен.ru/policy"></script>
+        data-policy-url="https://dolshikirf.ru/policy"></script>
 ```
 
 Вариант 2 — iframe напрямую:
 
 ```html
-<iframe src="https://calc.ваш-домен.ru/widget/index.html"
+<iframe src="https://dolshikirf.ru/widget/index.html"
         style="width:100%;border:0;min-height:640px" scrolling="no"></iframe>
 ```
 

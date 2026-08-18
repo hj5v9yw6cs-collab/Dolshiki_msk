@@ -58,7 +58,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Виджет встраивается на example.ru, поэтому кросс-доменные запросы нужны.
+# Виджет встраивается на dolshikirf.ru, поэтому кросс-доменные запросы нужны.
 # Список доменов задаётся переменной CORS_ORIGINS, по умолчанию — только локальная разработка.
 origins = env_list("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
 app.add_middleware(

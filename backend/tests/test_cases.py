@@ -69,7 +69,7 @@ def test_login_with_wrong_password_is_rejected(api_client, staff):
 def test_unknown_email_gives_the_same_answer_as_wrong_password(api_client, staff):
     """Ответ не должен выдавать, заведён ли такой сотрудник."""
     unknown = api_client.post(
-        "/api/v1/auth/login", json={"email": "nobody@example.ru", "password": "какой-то"}
+        "/api/v1/auth/login", json={"email": "nobody@dolshikirf.ru", "password": "какой-то"}
     )
     wrong = api_client.post(
         "/api/v1/auth/login", json={"email": MANAGER["email"], "password": "не тот"}

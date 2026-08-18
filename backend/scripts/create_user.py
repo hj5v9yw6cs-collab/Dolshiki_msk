@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Заводит сотрудника в системе.
 
-    ./.venv/bin/python scripts/create_user.py ivan@example.ru "Иван Петров" manager
+    ./.venv/bin/python scripts/create_user.py ivan@dolshikirf.ru "Иван Петров" manager
 
 Пароль спрашивается интерактивно и в истории команд не остаётся.
 Роли: manager (руководитель, видит деньги) и lawyer (юрист).

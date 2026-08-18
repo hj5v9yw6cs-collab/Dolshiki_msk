@@ -139,8 +139,8 @@ def api_client(tmp_path):
     store.reload()
 
 
-MANAGER = {"email": "boss@example.ru", "password": "manager-pass-1", "name": "Руководитель"}
-LAWYER = {"email": "urist@example.ru", "password": "lawyer-pass-1", "name": "Юрист Ирина"}
+MANAGER = {"email": "boss@dolshikirf.ru", "password": "manager-pass-1", "name": "Руководитель"}
+LAWYER = {"email": "urist@dolshikirf.ru", "password": "lawyer-pass-1", "name": "Юрист Ирина"}
 
 
 @pytest.fixture

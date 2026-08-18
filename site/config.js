@@ -9,5 +9,5 @@ window.SITE_CONTACT = {
   whatsapp: "79001234567",              // ← ваш номер WhatsApp
   phone: "+7 900 123-45-67",            // ← как показывать номер людям
   telegram: "",                         // ← имя пользователя без @, если есть
-  policy_url: "https://example.ru/policy"   // ← страница политики обработки данных
+  policy_url: "https://dolshikirf.ru/policy"   // ← страница политики обработки данных
 };

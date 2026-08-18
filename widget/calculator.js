@@ -415,8 +415,24 @@
     })
       .then(function () {
         $("form-lead").hidden = true;
-        showNote("lead-status", "ok", "Заявка отправлена",
-          "Юрист свяжется с вами и разберёт расчёт. Обычно перезваниваем в течение рабочего дня.");
+        var done = window.CALC_LEAD_SUCCESS || {};
+        showNote("lead-status", "ok",
+          done.title || "Заявка отправлена",
+          done.text || "Юрист свяжется с вами и разберёт расчёт. Обычно перезваниваем в течение рабочего дня.");
+
+        // Переход в мессенджер — только по клику: окно, открытое из
+        // асинхронного кода, браузер блокирует как всплывающее.
+        var action = typeof window.CALC_LEAD_ACTION === "function" ? window.CALC_LEAD_ACTION() : null;
+        if (action && action.url) {
+          var link = document.createElement("a");
+          link.className = "btn btn--solid btn--wide";
+          link.href = action.url;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.style.marginTop = "12px";
+          link.textContent = action.label || "Продолжить";
+          $("lead-status").appendChild(link);
+        }
       })
       .catch(function (error) {
         showNote("lead-status", "error", "Не удалось отправить заявку", error.message);

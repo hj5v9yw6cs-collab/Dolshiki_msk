@@ -28,6 +28,11 @@
           if (path === "/api/v1/rate") { resolve(engine.rateStatus()); return; }
 
           if (path === "/api/v1/leads") {
+            // На сайте без сервера заявку принимает не CRM, а мессенджер.
+            if (typeof window.CALC_LEAD_HANDLER === "function") {
+              resolve(window.CALC_LEAD_HANDLER(payload, saved[payload.calculation_id]));
+              return;
+            }
             resolve({ ok: true, id: "demo-lead-" + (++counter) });
             return;
           }

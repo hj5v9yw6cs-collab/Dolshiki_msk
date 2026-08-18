@@ -7,3 +7,4 @@ __pycache__/
 config/cbr-sync-state.json
 .pytest_cache/
 demo/dist/
+site/dist/

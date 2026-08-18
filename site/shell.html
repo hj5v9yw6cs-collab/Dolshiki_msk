@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор неустойки по 214-ФЗ</title>
+<meta name="description" content="Расчёт неустойки по 214-ФЗ с учётом мораторных периодов и изменений ключевой ставки ЦБ.">
+<style>
+{{STYLES}}
+</style>
+<script>
+  try {
+    var savedTheme = localStorage.getItem("calc-theme");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    }
+  } catch (e) { /* приватный режим */ }
+</script>
+</head>
+<body class="calc-standalone">
+
+{{WIDGET}}
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden role="dialog" aria-modal="true" aria-label="Расчёт для суда">
+  <div class="sheet">
+    <div class="sheet__bar">
+      <span class="sheet__hint">Чтобы сохранить в PDF — нажмите «Печать» в браузере и выберите «Сохранить как PDF».</span>
+      <button type="button" class="sheet__close" id="sheet-close">Закрыть</button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<script>
+{{CONFIG}}
+</script>
+<script>
+{{ENGINE}}
+</script>
+<script>
+window.CALC_LEGAL_CONFIG = {{LEGAL}};
+window.CALC_POLICY_URL = (window.SITE_CONTACT && window.SITE_CONTACT.policy_url) || "/policy";
+</script>
+<script>
+{{SITE_GLUE}}
+</script>
+<script>
+{{GLUE}}
+</script>
+<script>
+{{CALCULATOR}}
+</script>
+</body>
+</html>

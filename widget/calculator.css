@@ -372,6 +372,7 @@ body, .calc {
   white-space: nowrap;
 }
 .btn:active { transform: translateY(1px); }
+a.btn { text-decoration: none; }
 .btn svg { width: 15px; height: 15px; }
 .btn--solid { background: var(--solid); color: var(--solid-text); }
 .btn--solid:hover { background: var(--solid-hover); }

@@ -12,7 +12,7 @@ from ..db import get_session
 from ..models import Calculation, Lead
 from ..notifications import notify_new_lead
 from ..schemas import LeadRequest
-from .deps import client_ip, lead_limiter, require_admin
+from .deps import Actor, client_ip, current_actor, lead_limiter
 
 router = APIRouter(prefix="/api/v1", tags=["Заявки"])
 
@@ -60,11 +60,11 @@ def create_lead(
     return {"ok": True, "id": lead.id}
 
 
-@router.get("/leads", summary="Список заявок (админ)")
+@router.get("/leads", summary="Список заявок")
 def list_leads(
     limit: int = 50,
     offset: int = 0,
-    _: str = Depends(require_admin),
+    _: Actor = Depends(current_actor),
     session: Session = Depends(get_session),
 ) -> dict:
     limit = max(1, min(limit, 200))

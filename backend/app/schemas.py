@@ -84,3 +84,91 @@ class ConfigUpdateRequest(BaseModel):
     config: dict
     author: str = Field(min_length=3, max_length=200)
     comment: str = Field(default="", max_length=1000)
+
+
+# --- Фаза 2: доступ и дела --------------------------------------------------
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class CaseCreate(BaseModel):
+    """Создание дела. Клиент заводится тут же — отдельный справочник
+    на потоке в 30 дел в месяц только добавляет кликов."""
+
+    client_name: str = Field(min_length=2, max_length=300)
+    client_phone: str = Field(min_length=6, max_length=32)
+    client_email: Optional[str] = Field(default=None, max_length=200)
+
+    service_type: str = Field(default="delay", max_length=20)
+    region: str = Field(default="msk", max_length=32)
+    stage: str = Field(default="new", max_length=24)
+    lawyer_id: Optional[str] = Field(default=None, max_length=36)
+
+    developer_name: Optional[str] = Field(default=None, max_length=300)
+    project: Optional[str] = Field(default=None, max_length=300)
+    apartment: Optional[str] = Field(default=None, max_length=100)
+
+    contract_number: Optional[str] = Field(default=None, max_length=100)
+    contract_date: Optional[date] = None
+    contract_price: Optional[Decimal] = Field(default=None, ge=0)
+    due_date: Optional[date] = None
+    actual_transfer_date: Optional[date] = None
+
+    calculation_id: Optional[str] = Field(default=None, max_length=36)
+    lead_id: Optional[str] = Field(default=None, max_length=36)
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
+class CaseUpdate(BaseModel):
+    """Частичное обновление: приходят только изменённые поля."""
+
+    model_config = {"extra": "forbid"}
+
+    client_name: Optional[str] = Field(default=None, max_length=300)
+    client_phone: Optional[str] = Field(default=None, max_length=32)
+    client_email: Optional[str] = Field(default=None, max_length=200)
+
+    service_type: Optional[str] = Field(default=None, max_length=20)
+    region: Optional[str] = Field(default=None, max_length=32)
+    lawyer_id: Optional[str] = Field(default=None, max_length=36)
+    developer_name: Optional[str] = Field(default=None, max_length=300)
+    project: Optional[str] = Field(default=None, max_length=300)
+    apartment: Optional[str] = Field(default=None, max_length=100)
+
+    contract_number: Optional[str] = Field(default=None, max_length=100)
+    contract_date: Optional[date] = None
+    contract_price: Optional[Decimal] = Field(default=None, ge=0)
+    due_date: Optional[date] = None
+    actual_transfer_date: Optional[date] = None
+
+    claim_sent_on: Optional[date] = None
+    claim_response_deadline: Optional[date] = None
+
+    court_name: Optional[str] = Field(default=None, max_length=300)
+    court_case_number: Optional[str] = Field(default=None, max_length=100)
+    next_hearing_on: Optional[date] = None
+    appeal_deadline: Optional[date] = None
+
+    amount_claimed: Optional[Decimal] = Field(default=None, ge=0)
+    amount_awarded: Optional[Decimal] = Field(default=None, ge=0)
+    amount_received: Optional[Decimal] = Field(default=None, ge=0)
+    fee: Optional[Decimal] = Field(default=None, ge=0)
+
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
+class StageChange(BaseModel):
+    stage: str = Field(max_length=24)
+    comment: str = Field(default="", max_length=1000)
+
+
+class NoteCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class LeadConvert(BaseModel):
+    lawyer_id: Optional[str] = Field(default=None, max_length=36)
+    service_type: Optional[str] = Field(default=None, max_length=20)

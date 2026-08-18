@@ -101,7 +101,7 @@ def api_client(tmp_path):
     """TestClient с подменённым юридическим конфигом и чистыми лимитерами."""
     from fastapi.testclient import TestClient
 
-    from app.api.deps import calc_limiter, lead_limiter
+    from app.api.deps import calc_limiter, lead_limiter, login_limiter
     from app.core.legal_config import store
     from app.main import app
 
@@ -110,11 +110,19 @@ def api_client(tmp_path):
         json.dumps(config_dict(), ensure_ascii=False), encoding="utf-8"
     )
 
+    # Каждому тесту — чистая база: иначе дела копятся между тестами
+    # и проверки счётчиков начинают зависеть от порядка запуска.
+    from app.db import Base, engine
+
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
     original_path = store.path
     store.path = config_path
     store.reload()
     calc_limiter._hits.clear()
     lead_limiter._hits.clear()
+    login_limiter._hits.clear()
 
     with TestClient(app) as client:
         yield client

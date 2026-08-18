@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import admin, calc, leads
+from .api import admin, auth, calc, cases, leads
 from .core.legal_config import LegalConfigError, store
 from .db import init_db
 
@@ -23,6 +23,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 WIDGET_DIR = Path(__file__).resolve().parents[2] / "widget"
+ADMIN_DIR = Path(__file__).resolve().parents[2] / "admin"
 
 
 @asynccontextmanager
@@ -66,16 +67,22 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(calc.router)
 app.include_router(leads.router)
+app.include_router(cases.router)
 app.include_router(admin.router)
 
 if WIDGET_DIR.exists():
     app.mount("/widget", StaticFiles(directory=WIDGET_DIR), name="widget")
+
+# Рабочий интерфейс для сотрудников.
+if ADMIN_DIR.exists():
+    app.mount("/app", StaticFiles(directory=ADMIN_DIR, html=True), name="admin")
 
 
 @app.get("/health", tags=["Служебное"])

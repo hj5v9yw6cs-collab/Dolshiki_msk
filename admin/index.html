@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дела — рабочий кабинет</title>
+<link rel="stylesheet" href="app.css">
+<script>
+  try {
+    var savedTheme = localStorage.getItem("calc-theme");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    }
+  } catch (e) { /* приватный режим */ }
+</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+  </symbol>
+  <symbol id="i-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 12H5M11 18l-6-6 6-6"/>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+</svg>
+
+<!-- ================= Вход ================= -->
+<section class="login" id="screen-login" hidden>
+  <div class="login__card">
+    <h1 class="login__title">Рабочий кабинет</h1>
+    <p class="login__sub">Ведение дел по защите прав дольщиков</p>
+    <form id="form-login" novalidate>
+      <div class="field" style="margin-bottom:14px">
+        <label for="login-email">Рабочая почта</label>
+        <input type="email" id="login-email" autocomplete="username" placeholder="urist@garantlc.ru">
+      </div>
+      <div class="field" style="margin-bottom:18px">
+        <label for="login-password">Пароль</label>
+        <input type="password" id="login-password" autocomplete="current-password">
+      </div>
+      <div id="login-error"></div>
+      <button type="submit" class="btn btn--solid" style="width:100%" id="login-submit">Войти</button>
+    </form>
+  </div>
+</section>
+
+<!-- ================= Рабочая область ================= -->
+<div id="screen-app" hidden>
+  <header class="top">
+    <div class="brand">Дольщики<span> · рабочий кабинет</span></div>
+    <nav class="tabs">
+      <button type="button" class="tab" data-tab="cases" aria-current="true">Дела</button>
+      <button type="button" class="tab" data-tab="leads">Заявки<span class="count" id="leads-count" hidden>0</span></button>
+    </nav>
+    <div class="top__right">
+      <div class="who"><b id="who-name">—</b><span id="who-role">—</span></div>
+      <button type="button" class="icon-btn" id="theme-toggle" aria-label="Переключить тему">
+        <svg class="icon-sun"><use href="#i-sun"/></svg>
+        <svg class="icon-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button type="button" class="btn btn--quiet btn--sm" id="logout">Выйти</button>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- ---------- Список дел ---------- -->
+    <section id="view-cases">
+      <div class="tiles" id="tiles"></div>
+
+      <div class="bar">
+        <div class="grow"><input type="search" id="f-search" placeholder="Клиент, телефон, № дела, ЖК, № дела в суде"></div>
+        <select id="f-stage" style="width:auto"><option value="">Все стадии</option></select>
+        <select id="f-lawyer" style="width:auto"><option value="">Все юристы</option></select>
+        <select id="f-region" style="width:auto"><option value="">Все регионы</option></select>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn--solid" id="btn-new-case">
+          <svg width="15" height="15"><use href="#i-plus"/></svg> Новое дело
+        </button>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="list">
+            <thead>
+              <tr>
+                <th>№</th><th>Клиент</th><th>Объект</th><th>Услуга</th>
+                <th>Стадия</th><th>Юрист</th><th>Ближайший срок</th><th class="num">Заявлено, ₽</th>
+              </tr>
+            </thead>
+            <tbody id="cases-body"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="cases-empty" hidden>Дел не найдено</div>
+      </div>
+    </section>
+
+    <!-- ---------- Заявки ---------- -->
+    <section id="view-leads" hidden>
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="list">
+            <thead>
+              <tr><th>Дата</th><th>Имя</th><th>Телефон</th><th>Тема</th><th>Объект</th><th>Расчёт с сайта</th><th></th></tr>
+            </thead>
+            <tbody id="leads-body"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="leads-empty" hidden>Заявок пока нет</div>
+      </div>
+    </section>
+
+    <!-- ---------- Карточка дела ---------- -->
+    <section id="view-case" hidden></section>
+  </main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

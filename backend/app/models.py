@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -81,3 +82,137 @@ class ConfigChange(Base):
     version_after: Mapped[int] = mapped_column(default=0)
     diff_summary: Mapped[str] = mapped_column(Text, default="")
     snapshot: Mapped[dict] = mapped_column(JSON)
+
+
+# ---------------------------------------------------------------------------
+# Фаза 2: пользователи и ведение дел
+# ---------------------------------------------------------------------------
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(16), default="lawyer")  # manager | lawyer
+    password_hash: Mapped[str] = mapped_column(String(300))
+    is_active: Mapped[bool] = mapped_column(default=True)
+
+    cases: Mapped[list["Case"]] = relationship(back_populates="lawyer")
+
+
+class Session(Base):
+    """Сессия входа. В базе лежит хеш токена, не сам токен."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+    user: Mapped[User] = relationship()
+
+
+class Developer(Base):
+    """Застройщик."""
+
+    __tablename__ = "developers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    name: Mapped[str] = mapped_column(String(300), index=True)
+    # Нормализованное имя для поиска дублей: SQL-функция lower() в SQLite
+    # не работает с кириллицей, поэтому ключ считаем в Python.
+    name_key: Mapped[str] = mapped_column(String(300), unique=True, index=True)
+    inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Client(Base):
+    __tablename__ = "clients"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    full_name: Mapped[str] = mapped_column(String(300), index=True)
+    phone: Mapped[str] = mapped_column(String(32))
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    region: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    cases: Mapped[list["Case"]] = relationship(back_populates="client")
+
+
+class Case(Base):
+    """Дело — центральная сущность системы."""
+
+    __tablename__ = "cases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    number: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id"))
+    client: Mapped[Client] = relationship(back_populates="cases")
+
+    developer_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("developers.id"), nullable=True)
+    developer: Mapped[Developer | None] = relationship()
+
+    lawyer_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    lawyer: Mapped[User | None] = relationship(back_populates="cases")
+
+    service_type: Mapped[str] = mapped_column(String(20), default="delay")
+    region: Mapped[str] = mapped_column(String(32), default="msk")
+    stage: Mapped[str] = mapped_column(String(24), default="new", index=True)
+
+    project: Mapped[str | None] = mapped_column(String(300), nullable=True)  # ЖК
+    apartment: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    contract_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contract_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    contract_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_transfer_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    claim_sent_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    claim_response_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    court_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    court_case_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    next_hearing_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    appeal_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    amount_claimed: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    amount_awarded: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    amount_received: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    fee: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+
+    calculation_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("calculations.id"), nullable=True)
+    lead_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("leads.id"), nullable=True)
+
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    events: Mapped[list["CaseEvent"]] = relationship(
+        back_populates="case", cascade="all, delete-orphan", order_by="CaseEvent.created_at.desc()"
+    )
+
+
+class CaseEvent(Base):
+    """Лента дела: смена стадии, правки полей, заметки юриста."""
+
+    __tablename__ = "case_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), index=True)
+    case: Mapped[Case] = relationship(back_populates="events")
+
+    author_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(200), default="система")
+    kind: Mapped[str] = mapped_column(String(16), default="note")  # stage | note | field | system
+    text: Mapped[str] = mapped_column(Text, default="")

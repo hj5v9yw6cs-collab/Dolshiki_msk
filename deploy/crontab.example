@@ -3,5 +3,8 @@
 # Ключевая ставка ЦБ — раз в сутки утром.
 0 6 * * *  cd /opt/dolshiki/deploy && docker compose exec -T app python scripts/sync_rates.py >> /var/log/dolshiki-cbr.log 2>&1
 
-# Резервная копия базы — раз в сутки ночью.
-0 3 * * *  /opt/dolshiki/deploy/backup.sh >> /var/log/dolshiki-backup.log 2>&1
+# База и юридический конфиг — каждую ночь, 30 копий.
+0 3 * * *  /opt/dolshiki/deploy/backup.sh daily >> /var/log/dolshiki-backup.log 2>&1
+
+# То же плюс файлы дел — раз в неделю ночью с субботы на воскресенье, 4 копии.
+0 4 * * 0  /opt/dolshiki/deploy/backup.sh full >> /var/log/dolshiki-backup.log 2>&1

@@ -172,3 +172,11 @@ class NoteCreate(BaseModel):
 class LeadConvert(BaseModel):
     lawyer_id: Optional[str] = Field(default=None, max_length=36)
     service_type: Optional[str] = Field(default=None, max_length=20)
+
+
+class DocumentUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    doc_type: Optional[str] = Field(default=None, max_length=32)
+    doc_date: Optional[date] = None
+    note: Optional[str] = Field(default=None, max_length=2000)

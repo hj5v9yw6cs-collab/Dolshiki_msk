@@ -14,8 +14,8 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .env import env
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path(env("DATA_DIR", str(Path(__file__).resolve().parents[1] / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DATABASE_URL = env("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 

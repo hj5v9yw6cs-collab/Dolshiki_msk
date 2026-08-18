@@ -103,21 +103,21 @@ cd backend && ../.venv/bin/python -m pytest -q
 показывает предупреждение. Молча считать по устаревшей ставке нельзя — цифра пойдёт
 в суд.
 
-## Встраивание на garantlc.ru
+## Встраивание на сайт
 
 Вариант 1 — один тег:
 
 ```html
 <div id="garant-calc"></div>
-<script src="https://calc.garantlc.ru/embed.js"
+<script src="https://calc.ваш-домен.ru/embed.js"
         data-target="garant-calc"
-        data-policy-url="https://garantlc.ru/policy"></script>
+        data-policy-url="https://ваш-домен.ru/policy"></script>
 ```
 
 Вариант 2 — iframe напрямую:
 
 ```html
-<iframe src="https://calc.garantlc.ru/widget/index.html"
+<iframe src="https://calc.ваш-домен.ru/widget/index.html"
         style="width:100%;border:0;min-height:640px" scrolling="no"></iframe>
 ```
 

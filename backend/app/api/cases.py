@@ -536,3 +536,38 @@ def convert_lead(
     session.commit()
     session.refresh(case)
     return case_detail(case, actor)
+
+
+@router.get("/cases.xlsx", summary="Выгрузить реестр дел в Excel")
+def export_registry(
+    stage: Optional[str] = None,
+    lawyer_id: Optional[str] = None,
+    region: Optional[str] = None,
+    only_active: bool = False,
+    actor: Actor = Depends(current_actor),
+    session: DbSession = Depends(get_session),
+):
+    from fastapi.responses import Response
+
+    from ..registry import build_registry, registry_filename
+
+    statement = select(Case)
+    if stage:
+        statement = statement.where(Case.stage == stage)
+    if lawyer_id:
+        statement = statement.where(Case.lawyer_id == lawyer_id)
+    if region:
+        statement = statement.where(Case.region == region)
+    if only_active:
+        final = [code for code, item in STAGE_BY_CODE.items() if item.is_final]
+        statement = statement.where(Case.stage.not_in(final))
+
+    cases = session.scalars(statement.order_by(Case.number)).all()
+    payload = build_registry(cases, with_money=actor.is_manager)
+    filename = registry_filename()
+
+    return Response(
+        content=payload,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

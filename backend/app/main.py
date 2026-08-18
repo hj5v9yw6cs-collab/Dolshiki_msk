@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import admin, auth, calc, cases, leads
+from .api import admin, auth, calc, cases, documents, leads
 from .env import env, env_list
 from .core.legal_config import LegalConfigError, store
 from .db import init_db
@@ -57,14 +57,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Виджет встраивается на garantlc.ru, поэтому кросс-доменные запросы нужны.
+# Виджет встраивается на example.ru, поэтому кросс-доменные запросы нужны.
 # Список доменов задаётся переменной CORS_ORIGINS, по умолчанию — только локальная разработка.
 origins = env_list("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -72,6 +72,7 @@ app.include_router(auth.router)
 app.include_router(calc.router)
 app.include_router(leads.router)
 app.include_router(cases.router)
+app.include_router(documents.router)
 app.include_router(admin.router)
 
 if WIDGET_DIR.exists():

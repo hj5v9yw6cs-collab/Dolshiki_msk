@@ -341,6 +341,17 @@
       '<div class="wide">' + field("Комментарий", "comment", data.comment, "textarea") + "</div>" +
       "</div></div>";
 
+    html += '<div class="card"><h2>Документы</h2>' +
+      '<label class="drop" id="drop">' +
+      '<div class="drop__title">Перетащите файлы или нажмите, чтобы выбрать</div>' +
+      '<div class="drop__hint">Договор, платёжки, акт, экспертиза, паспорт. До 25 МБ на файл</div>' +
+      '<input type="file" id="file-input" multiple>' +
+      "</label>" +
+      '<div id="upload-status"></div>' +
+      '<div class="docs" id="docs"></div></div>';
+
+    html += '<div class="card"><h2>Комплектность</h2><div id="checklist"></div></div>';
+
     html += '<div class="card"><h2>Лента дела</h2>' +
       '<div class="field" style="margin-bottom:14px">' +
       '<textarea id="note-text" placeholder="Что произошло по делу"></textarea>' +
@@ -379,7 +390,202 @@
     all("[data-field]").forEach(function (input) {
       on(input, "change", function () { saveField(data.id, input); });
     });
+
+    var drop = $("drop");
+    var input = $("file-input");
+    on(input, "change", function () {
+      uploadFiles(data.id, input.files);
+      input.value = "";
+    });
+    ["dragenter", "dragover"].forEach(function (name) {
+      on(drop, name, function (event) {
+        event.preventDefault();
+        drop.dataset.over = "true";
+      });
+    });
+    ["dragleave", "drop"].forEach(function (name) {
+      on(drop, name, function (event) {
+        event.preventDefault();
+        drop.dataset.over = "false";
+      });
+    });
+    on(drop, "drop", function (event) {
+      uploadFiles(data.id, event.dataTransfer.files);
+    });
+
+    loadDocuments(data.id);
   }
+
+  function renderDocuments(caseId, data) {
+    var typeOptions = (state.docTypes || []).map(function (type) {
+      return { value: type.code, title: type.title };
+    });
+
+    $("docs").innerHTML = data.items.length ? data.items.map(function (doc) {
+      var extracted = Object.keys(doc.extracted || {});
+      var chip = doc.needs_review
+        ? '<span class="pill pill--soon">проверьте тип</span>' : "";
+      var scan = doc.is_scan
+        ? '<span class="pill">скан без текста</span>' : "";
+
+      var extra = "";
+      if (extracted.length && !doc.extracted_applied) {
+        extra = '<div class="doc__extract"><span>Нашли в документе: <b>' +
+          extracted.map(function (key) { return esc(FIELD_TITLES[key] || key); }).join(", ") +
+          '</b></span><button type="button" class="btn btn--outline btn--sm" data-apply="' +
+          esc(doc.id) + '">Перенести в карточку</button></div>';
+      } else if (doc.extracted_applied) {
+        extra = '<div class="doc__extract">Реквизиты перенесены в карточку</div>';
+      }
+
+      return '<div class="doc" data-review="' + doc.needs_review + '">' +
+        "<div>" +
+        '<div class="doc__name">' + esc(doc.stored_name) + " " + chip + " " + scan + "</div>" +
+        '<div class="doc__meta">' + esc(doc.folder_title) + " · " + esc(doc.size_display) +
+        " · " + esc(doc.uploaded_by) + " · " + esc(ruDateTime(doc.created_at)) + "</div>" +
+        '<div class="doc__why">' + esc(doc.signals || "") + "</div>" +
+        "</div>" +
+        '<div class="doc__actions">' +
+        '<select data-doctype="' + esc(doc.id) + '">' + typeOptions.map(function (option) {
+          return '<option value="' + esc(option.value) + '"' +
+            (option.value === doc.doc_type ? " selected" : "") + ">" + esc(option.title) + "</option>";
+        }).join("") + "</select>" +
+        '<a class="btn btn--outline btn--sm" href="/api/v1/documents/' + esc(doc.id) +
+        '/file" data-download="' + esc(doc.id) + '">Скачать</a>' +
+        '<button type="button" class="btn btn--quiet btn--sm" data-delete="' + esc(doc.id) +
+        '">Удалить</button>' +
+        "</div>" + extra + "</div>";
+    }).join("") : '<div class="check__why">Документов пока нет</div>';
+
+    var checklist = data.checklist;
+    $("checklist").innerHTML =
+      '<div class="check__summary" data-ready="' + checklist.ready + '">' +
+      (checklist.ready
+        ? "Комплект собран — можно двигаться дальше"
+        : "Не хватает документов: " + checklist.missing_required + " из " + checklist.required_total) +
+      "</div>" +
+      '<div class="check">' + checklist.items.map(function (item) {
+        return '<div class="check__item" data-present="' + item.present +
+          '" data-optional="' + item.optional + '"><span class="check__mark"></span><div>' +
+          esc(item.title) + (item.optional ? " <span class=\"check__why\">(если есть)</span>" : "") +
+          '<div class="check__why">' + esc(item.why) + "</div></div></div>";
+      }).join("") + "</div>";
+
+    all("[data-doctype]").forEach(function (select) {
+      on(select, "change", function () {
+        api("/api/v1/documents/" + select.dataset.doctype, {
+          method: "PATCH", body: { doc_type: select.value }
+        }).then(function () {
+          toast("ok", "Тип документа обновлён");
+          loadDocuments(caseId);
+        }).catch(function (error) { toast("error", error.message); });
+      });
+    });
+
+    all("[data-delete]").forEach(function (button) {
+      on(button, "click", function () {
+        if (!window.confirm("Удалить документ? Файл будет стёрт с диска.")) return;
+        api("/api/v1/documents/" + button.dataset.delete, { method: "DELETE" })
+          .then(function () { toast("ok", "Документ удалён"); loadDocuments(caseId); })
+          .catch(function (error) { toast("error", error.message); });
+      });
+    });
+
+    all("[data-apply]").forEach(function (button) {
+      on(button, "click", function () {
+        api("/api/v1/documents/" + button.dataset.apply + "/apply", { method: "POST" })
+          .then(function () { toast("ok", "Реквизиты перенесены"); openCase(caseId); })
+          .catch(function (error) { toast("error", error.message); });
+      });
+    });
+
+    // Скачивание идёт с токеном, поэтому обычная ссылка не подходит.
+    all("[data-download]").forEach(function (link) {
+      on(link, "click", function (event) {
+        event.preventDefault();
+        downloadDocument(link.dataset.download);
+      });
+    });
+  }
+
+  function downloadDocument(documentId) {
+    fetch("/api/v1/documents/" + documentId + "/file", {
+      headers: { Authorization: "Bearer " + token() }
+    }).then(function (response) {
+      if (!response.ok) throw new Error("Файл недоступен");
+      var name = "document";
+      var disposition = response.headers.get("content-disposition") || "";
+      var match = disposition.match(/filename="?([^"]+)"?/);
+      if (match) name = decodeURIComponent(match[1]);
+      return response.blob().then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+    }).catch(function (error) { toast("error", error.message); });
+  }
+
+  function loadDocuments(caseId) {
+    return api("/api/v1/cases/" + caseId + "/documents")
+      .then(function (data) { renderDocuments(caseId, data); })
+      .catch(function (error) { toast("error", error.message); });
+  }
+
+  function uploadFiles(caseId, files) {
+    if (!files || !files.length) return;
+    var status = $("upload-status");
+    var queue = Array.prototype.slice.call(files);
+    var done = 0;
+    var failed = [];
+
+    status.innerHTML = '<div class="note-box">Загружаем 0 из ' + queue.length + "…</div>";
+
+    function next() {
+      if (!queue.length) {
+        status.innerHTML = failed.length
+          ? '<div class="note-box note-box--error">Не удалось загрузить: ' +
+            failed.map(esc).join("; ") + "</div>"
+          : "";
+        loadDocuments(caseId);
+        return;
+      }
+      var file = queue.shift();
+      var form = new FormData();
+      form.append("file", file);
+
+      fetch("/api/v1/cases/" + caseId + "/documents", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token() },
+        body: form
+      }).then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (body) {
+          if (!response.ok) throw new Error(body.detail || "Ошибка загрузки");
+          return body;
+        });
+      }).then(function () {
+        done += 1;
+      }).catch(function (error) {
+        failed.push(file.name + " — " + error.message);
+      }).then(function () {
+        status.innerHTML = '<div class="note-box">Загружаем ' + (done + failed.length) +
+          " из " + (done + failed.length + queue.length) + "…</div>";
+        next();
+      });
+    }
+
+    next();
+  }
+
+  var FIELD_TITLES = {
+    contract_number: "номер ДДУ",
+    contract_date: "дата ДДУ",
+    contract_price: "цена ДДУ",
+    apartment: "квартира",
+    due_date: "срок передачи"
+  };
 
   function saveField(caseId, input) {
     var name = input.dataset.field;
@@ -483,8 +689,10 @@
       state.user = user;
       $("who-name").textContent = user.name;
       $("who-role").textContent = user.role_title;
-      return api("/api/v1/meta");
-    }).then(function (meta) {
+      return Promise.all([api("/api/v1/meta"), api("/api/v1/documents/meta")]);
+    }).then(function (results) {
+      var meta = results[0];
+      state.docTypes = results[1].types;
       state.meta = meta;
       fillFilters();
       showApp();
@@ -535,6 +743,24 @@
     });
 
     on($("btn-new-case"), "click", newCaseModal);
+
+    on($("btn-export"), "click", function () {
+      var params = currentFilters();
+      fetch("/api/v1/cases.xlsx" + (params ? "?" + params : ""), {
+        headers: { Authorization: "Bearer " + token() }
+      }).then(function (response) {
+        if (!response.ok) throw new Error("Не удалось выгрузить реестр");
+        return response.blob();
+      }).then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = "reestr-del.xlsx";
+        link.click();
+        URL.revokeObjectURL(url);
+        toast("ok", "Реестр выгружен");
+      }).catch(function (error) { toast("error", error.message); });
+    });
 
     var searchTimer = null;
     on($("f-search"), "input", function () {

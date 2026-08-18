@@ -11,8 +11,9 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 # Тестовая БД и токен — до импорта приложения, иначе подхватится боевая конфигурация.
-_TEST_DB = Path(tempfile.mkdtemp(prefix="dolshiki-tests-")) / "test.db"
-os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
+_TEST_ROOT = Path(tempfile.mkdtemp(prefix="dolshiki-tests-"))
+os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_ROOT / 'test.db'}"
+os.environ["DATA_DIR"] = str(_TEST_ROOT)
 os.environ["ADMIN_TOKEN"] = "test-admin-token"
 
 from app.core.legal_config import parse_config  # noqa: E402
@@ -117,6 +118,13 @@ def api_client(tmp_path):
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
+    # И чистая папка с файлами дел — иначе имена копятся как «..._10».
+    import shutil
+
+    from app.db import DATA_DIR
+
+    shutil.rmtree(DATA_DIR / "cases", ignore_errors=True)
+
     original_path = store.path
     store.path = config_path
     store.reload()
@@ -129,3 +137,38 @@ def api_client(tmp_path):
 
     store.path = original_path
     store.reload()
+
+
+MANAGER = {"email": "boss@example.ru", "password": "manager-pass-1", "name": "Руководитель"}
+LAWYER = {"email": "urist@example.ru", "password": "lawyer-pass-1", "name": "Юрист Ирина"}
+
+
+@pytest.fixture
+def staff(api_client):
+    """Заводит руководителя и юриста, возвращает их токены."""
+    from app.core.security import hash_password
+    from app.db import SessionLocal
+    from app.models import User
+
+    session = SessionLocal()
+    try:
+        for data, role in ((MANAGER, "manager"), (LAWYER, "lawyer")):
+            if not session.query(User).filter(User.email == data["email"]).first():
+                session.add(User(
+                    email=data["email"], name=data["name"], role=role,
+                    password_hash=hash_password(data["password"]),
+                ))
+        session.commit()
+    finally:
+        session.close()
+
+    def login(data):
+        response = api_client.post(
+            "/api/v1/auth/login", json={"email": data["email"], "password": data["password"]}
+        )
+        assert response.status_code == 200, response.text
+        return {"Authorization": "Bearer " + response.json()["token"]}
+
+    return {"manager": login(MANAGER), "lawyer": login(LAWYER)}
+
+

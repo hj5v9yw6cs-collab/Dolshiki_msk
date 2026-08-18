@@ -8,10 +8,11 @@
 1. **Сервер в России.** Selectel, Timeweb, VK Cloud или Яндекс Облако.
    Берите самый простой: 2 ядра, 4 ГБ памяти, 40 ГБ диска, Ubuntu 24.04.
    Ориентир — 800–1500 ₽ в месяц.
-2. **Домен.** Подойдёт поддомен основного сайта, например `dela.garantlc.ru`.
+2. **Домен.** Подойдёт поддомен основного сайта, например `dela.ваш-домен.ru`.
    В настройках домена сделайте A-запись на IP-адрес сервера.
-3. **Доступ к хостингу garantlc.ru** — чтобы вставить одну строку кода
-   на страницы сайта.
+3. **Свой сайт** — если он уже есть, понадобится доступ к его хостингу,
+   чтобы вставить одну строку кода. Если сайта нет, калькулятор работает
+   и как отдельная страница по адресу системы.
 
 ## Шаг 1. Подготовить сервер
 
@@ -44,7 +45,7 @@ nano backend/.env
 
 ```
 ADMIN_TOKEN=сюда-длинную-случайную-строку
-CORS_ORIGINS=https://garantlc.ru,https://www.garantlc.ru
+CORS_ORIGINS=https://ваш-домен.ru,https://www.ваш-домен.ru
 ```
 
 **`deploy/.env`** — домен самой системы:
@@ -55,7 +56,7 @@ nano deploy/.env
 ```
 
 ```
-DOMAIN=dela.garantlc.ru
+DOMAIN=dela.ваш-домен.ru
 ```
 
 ## Шаг 3. Запустить
@@ -65,38 +66,38 @@ cd /opt/dolshiki/deploy
 docker compose up -d
 ```
 
-Через минуту система будет доступна по адресу `https://dela.garantlc.ru`.
+Через минуту система будет доступна по адресу `https://dela.ваш-домен.ru`.
 Сертификат HTTPS выпускается автоматически, ничего настраивать не нужно.
 
 Проверить, что всё поднялось:
 
 ```bash
 docker compose ps
-curl https://dela.garantlc.ru/health
+curl https://dela.ваш-домен.ru/health
 ```
 
 ## Шаг 4. Завести сотрудников
 
 ```bash
 cd /opt/dolshiki/deploy
-docker compose exec app python scripts/create_user.py boss@garantlc.ru "Фёдор Ильин" manager
-docker compose exec app python scripts/create_user.py irina@garantlc.ru "Ирина Соколова" lawyer
+docker compose exec app python scripts/create_user.py boss@example.ru "Фёдор Ильин" manager
+docker compose exec app python scripts/create_user.py irina@example.ru "Ирина Соколова" lawyer
 ```
 
 Пароль спрашивается при вводе и в истории команд не сохраняется.
 Роли: `manager` — руководитель, видит деньги; `lawyer` — юрист.
 
-Кабинет: `https://dela.garantlc.ru/app/`
+Кабинет: `https://dela.ваш-домен.ru/app/`
 
 ## Шаг 5. Поставить калькулятор на сайт
 
-На страницы garantlc.ru, где нужен калькулятор, вставьте две строки:
+Если у вас есть сайт — вставьте на нужные страницы две строки:
 
 ```html
 <div id="garant-calc"></div>
-<script src="https://dela.garantlc.ru/embed.js"
+<script src="https://dela.ваш-домен.ru/embed.js"
         data-target="garant-calc"
-        data-policy-url="https://garantlc.ru/policy"></script>
+        data-policy-url="https://ваш-домен.ru/policy"></script>
 ```
 
 Открыть сразу на нужном сценарии: добавьте `data-mode="defects"` для

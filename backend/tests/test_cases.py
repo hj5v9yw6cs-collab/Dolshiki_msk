@@ -6,8 +6,7 @@ import pytest
 
 from app.core.security import hash_password, verify_password
 
-MANAGER = {"email": "boss@garantlc.ru", "password": "manager-pass-1", "name": "Руководитель"}
-LAWYER = {"email": "urist@garantlc.ru", "password": "lawyer-pass-1", "name": "Юрист Ирина"}
+from conftest import LAWYER, MANAGER
 
 NEW_CASE = {
     "client_name": "Иван Петров",
@@ -19,34 +18,6 @@ NEW_CASE = {
     "due_date": "2021-12-30",
     "developer_name": "Донстрой",
 }
-
-
-@pytest.fixture
-def staff(api_client):
-    """Заводит руководителя и юриста, возвращает их токены."""
-    from app.db import SessionLocal
-    from app.models import User
-
-    session = SessionLocal()
-    try:
-        for data, role in ((MANAGER, "manager"), (LAWYER, "lawyer")):
-            if not session.query(User).filter(User.email == data["email"]).first():
-                session.add(User(
-                    email=data["email"], name=data["name"], role=role,
-                    password_hash=hash_password(data["password"]),
-                ))
-        session.commit()
-    finally:
-        session.close()
-
-    def login(data):
-        response = api_client.post(
-            "/api/v1/auth/login", json={"email": data["email"], "password": data["password"]}
-        )
-        assert response.status_code == 200, response.text
-        return {"Authorization": "Bearer " + response.json()["token"]}
-
-    return {"manager": login(MANAGER), "lawyer": login(LAWYER)}
 
 
 # --- пароли ----------------------------------------------------------------
@@ -98,7 +69,7 @@ def test_login_with_wrong_password_is_rejected(api_client, staff):
 def test_unknown_email_gives_the_same_answer_as_wrong_password(api_client, staff):
     """Ответ не должен выдавать, заведён ли такой сотрудник."""
     unknown = api_client.post(
-        "/api/v1/auth/login", json={"email": "nobody@garantlc.ru", "password": "какой-то"}
+        "/api/v1/auth/login", json={"email": "nobody@example.ru", "password": "какой-то"}
     )
     wrong = api_client.post(
         "/api/v1/auth/login", json={"email": MANAGER["email"], "password": "не тот"}

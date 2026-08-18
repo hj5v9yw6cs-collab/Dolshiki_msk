@@ -2,9 +2,9 @@
  * Встраивание калькулятора на существующий сайт одним тегом.
  *
  *   <div id="garant-calc"></div>
- *   <script src="https://calc.garantlc.ru/embed.js"
+ *   <script src="https://calc.example.ru/embed.js"
  *           data-target="garant-calc"
- *           data-policy-url="https://garantlc.ru/policy"></script>
+ *           data-policy-url="https://example.ru/policy"></script>
  *
  * Если data-target не указан, iframe вставляется на место самого тега.
  * Высота подстраивается автоматически по сообщениям из виджета.

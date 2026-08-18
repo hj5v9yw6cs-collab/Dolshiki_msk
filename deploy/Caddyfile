@@ -11,7 +11,7 @@
 		-Server
 	}
 
-	# Виджет калькулятора встраивается на garantlc.ru, поэтому ему
+	# Виджет калькулятора встраивается на example.ru, поэтому ему
 	# рамка из SAMEORIGIN не подходит — снимаем её только для него.
 	@widget path /widget/* /embed.js
 	header @widget -X-Frame-Options

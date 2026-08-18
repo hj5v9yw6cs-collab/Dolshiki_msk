@@ -8,3 +8,4 @@ config/cbr-sync-state.json
 .pytest_cache/
 demo/dist/
 site/dist/
+backend/.env

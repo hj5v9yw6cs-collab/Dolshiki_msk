@@ -200,6 +200,9 @@ class Case(Base):
     events: Mapped[list["CaseEvent"]] = relationship(
         back_populates="case", cascade="all, delete-orphan", order_by="CaseEvent.created_at.desc()"
     )
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="case", cascade="all, delete-orphan", order_by="Document.created_at.desc()"
+    )
 
 
 class CaseEvent(Base):
@@ -216,3 +219,59 @@ class CaseEvent(Base):
     author_name: Mapped[str] = mapped_column(String(200), default="система")
     kind: Mapped[str] = mapped_column(String(16), default="note")  # stage | note | field | system
     text: Mapped[str] = mapped_column(Text, default="")
+
+
+# ---------------------------------------------------------------------------
+# Фаза 3: документы по делу
+# ---------------------------------------------------------------------------
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), index=True)
+    case: Mapped["Case"] = relationship(back_populates="documents")
+
+    original_name: Mapped[str] = mapped_column(String(300))
+    stored_name: Mapped[str] = mapped_column(String(300))
+    # Путь относительно папки дела: 01_Договор/Petrov_2026-001_DDU.pdf
+    relative_path: Mapped[str] = mapped_column(String(500))
+    folder: Mapped[str] = mapped_column(String(40), default="99_Прочее")
+
+    doc_type: Mapped[str] = mapped_column(String(32), default="other", index=True)
+    doc_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    size_bytes: Mapped[int] = mapped_column(default=0)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+
+    # Как система определила тип и почему.
+    confidence: Mapped[float] = mapped_column(default=0.0)
+    needs_review: Mapped[bool] = mapped_column(default=True)
+    detected_by: Mapped[str] = mapped_column(String(16), default="rules")  # rules | manual
+    signals: Mapped[str] = mapped_column(Text, default="")
+    is_scan: Mapped[bool] = mapped_column(default=False)
+
+    # Реквизиты, извлечённые из текста, — предложение для карточки дела.
+    extracted: Mapped[dict] = mapped_column(JSON, default=dict)
+    extracted_applied: Mapped[bool] = mapped_column(default=False)
+
+    uploaded_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    uploaded_by_name: Mapped[str] = mapped_column(String(200), default="")
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DocumentAccess(Base):
+    """Журнал доступа к файлам клиентов — требование при обработке ПДн."""
+
+    __tablename__ = "document_access"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), index=True)
+    case_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    user_name: Mapped[str] = mapped_column(String(200), default="")
+    action: Mapped[str] = mapped_column(String(16), default="download")  # download | delete
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)

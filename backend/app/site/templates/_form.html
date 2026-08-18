@@ -1,0 +1,38 @@
+{# Форма заявки. Уходит в тот же кабинет, что и заявки из калькулятора. #}
+<section class="cta-band" id="zayavka">
+  <div class="wrap cta-band__inner">
+    <div class="cta-band__text">
+      <h2>{{ form_title | default("Расскажите, что случилось") }}</h2>
+      <p>{{ form_lead | default("Перезвоним, посчитаем сумму и скажем, что делать дальше. Консультация бесплатна.") }}</p>
+      <p class="muted">Или позвоните: <a href="tel:{{ content.company.phone_href }}">{{ content.company.phone }}</a></p>
+    </div>
+
+    <form class="lead-form" id="lead-form" novalidate data-topic="{{ topic | default('neustoyka') }}"
+          data-region="{{ region_code | default('') }}">
+      <div class="field">
+        <label for="l-name">Как к вам обращаться</label>
+        <input type="text" id="l-name" name="name" autocomplete="name" placeholder="Имя">
+        <span class="err" data-error-for="l-name"></span>
+      </div>
+      <div class="field">
+        <label for="l-phone">Телефон</label>
+        <input type="tel" id="l-phone" name="phone" autocomplete="tel" placeholder="+7 900 000-00-00">
+        <span class="err" data-error-for="l-phone"></span>
+      </div>
+      <div class="field">
+        <label for="l-project">ЖК или адрес объекта</label>
+        <input type="text" id="l-project" name="project" placeholder="Необязательно">
+      </div>
+      <label class="consent">
+        <input type="checkbox" id="l-consent">
+        <span>Согласен на <a href="/soglasie" target="_blank" rel="noopener">обработку персональных данных</a></span>
+      </label>
+      <span class="err" data-error-for="l-consent"></span>
+
+      <div class="honey"><label for="l-site">Не заполняйте</label><input type="text" id="l-site" tabindex="-1" autocomplete="off"></div>
+
+      <button type="submit" class="btn btn--solid btn--wide" id="lead-submit">Отправить заявку</button>
+      <div id="lead-status"></div>
+    </form>
+  </div>
+</section>

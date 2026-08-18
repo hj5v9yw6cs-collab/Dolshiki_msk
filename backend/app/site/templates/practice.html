@@ -1,0 +1,24 @@
+{% extends "simple.html" %}
+{% block body %}
+  {% if page.cases %}
+    <div class="practice">
+      {% for item in page.cases %}
+        <article class="case">
+          <div class="case__top">
+            <span class="pill">{{ item.service }}</span>
+            <span class="case__sum">{{ item.awarded }}</span>
+          </div>
+          <h2>{{ item.title }}</h2>
+          <p>{{ item.summary }}</p>
+          <dl class="case__facts">
+            <div><dt>Застройщик</dt><dd>{{ item.developer }}</dd></div>
+            <div><dt>Суд</dt><dd>{{ item.court }}</dd></div>
+            <div><dt>Год</dt><dd>{{ item.year }}</dd></div>
+          </dl>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="notice">{{ page.empty }}</div>
+  {% endif %}
+{% endblock %}

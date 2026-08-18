@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero">
+  <div class="wrap">
+    <h1>{{ page.h1 }}</h1>
+    <p class="hero__lead">{{ page.lead }}</p>
+    <div class="hero__actions">
+      <a class="btn btn--solid" href="#zayavka">Оставить заявку</a>
+      {% if page.calculator %}<a class="btn btn--outline" href="#calc">Посчитать сумму</a>{% endif %}
+    </div>
+    {% if page.regions %}
+      <div class="regions">
+        {% for region in page.regions %}<a href="/{{ page.slug }}/{{ region.slug }}">{{ region.title }}</a>{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if page.calculator %}
+<section class="section" id="calc">
+  <div class="wrap">
+    <h2 class="section__title">Посчитайте сумму сами</h2>
+    <p class="section__lead">Расчёт учитывает мораторные периоды и изменения ключевой ставки. Занимает минуту.</p>
+    <div class="calc-embed">
+      <iframe src="/widget/index.html?mode={{ page.calculator_mode | default('delay') }}&policy=/soglasie"
+              title="Калькулятор по 214-ФЗ" loading="lazy" scrolling="no" id="calc-frame"></iframe>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% for block in page.blocks | default([]) %}
+<section class="section">
+  <div class="wrap">
+    <h2 class="section__title">{{ block.heading }}</h2>
+    <ul class="ticks">
+      {% for item in block['items'] %}<li>{{ item }}</li>{% endfor %}
+    </ul>
+  </div>
+</section>
+{% endfor %}
+
+{% if page.steps %}
+<section class="section section--tint">
+  <div class="wrap">
+    <h2 class="section__title">Как мы работаем</h2>
+    <ol class="steps">
+      {% for step in page.steps %}
+        <li><span class="steps__num">{{ loop.index }}</span>
+          <div><b>{{ step.title }}</b><p>{{ step.text }}</p></div></li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+{% endif %}
+
+{% if page.faq %}
+<section class="section">
+  <div class="wrap wrap--narrow">
+    <h2 class="section__title">Частые вопросы</h2>
+    <div class="faq">
+      {% for item in page.faq %}
+        <details{% if loop.first %} open{% endif %}>
+          <summary>{{ item.q }}</summary>
+          <p>{{ item.a }}</p>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% include "_form.html" %}
+{% endblock %}

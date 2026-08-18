@@ -1,0 +1,27 @@
+{% extends "simple.html" %}
+{% block body %}
+  <div class="contact-grid">
+    <div class="contact-card">
+      <div class="contact-card__label">Телефон</div>
+      <a class="contact-card__value" href="tel:{{ content.company.phone_href }}">{{ content.company.phone }}</a>
+    </div>
+    <div class="contact-card">
+      <div class="contact-card__label">Почта</div>
+      <a class="contact-card__value" href="mailto:{{ content.company.email }}">{{ content.company.email }}</a>
+    </div>
+  </div>
+
+  <h2 class="section__title">Где работаем</h2>
+  <div class="cards">
+    {% for office in page.offices %}
+      <article class="card"><h3>{{ office.city }}</h3><p>{{ office.note }}</p></article>
+    {% endfor %}
+  </div>
+
+  <h2 class="section__title">Реквизиты</h2>
+  <dl class="facts">
+    <div><dt>Наименование</dt><dd>{{ content.company.legal_name }}</dd></div>
+    <div><dt>ИНН</dt><dd>{{ content.company.inn }}</dd></div>
+    <div><dt>Адрес</dt><dd>{{ content.company.address }}</dd></div>
+  </dl>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero hero--home">
+  <div class="wrap">
+    <span class="eyebrow">214-ФЗ · {{ content.company.cities }}</span>
+    <h1>{{ page.h1 }}</h1>
+    <p class="hero__lead">{{ page.lead }}</p>
+    <div class="hero__actions">
+      <a class="btn btn--solid" href="#calc">Посчитать неустойку</a>
+      <a class="btn btn--outline" href="#zayavka">Оставить заявку</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="cards">
+      {% for item in page.highlights %}
+        <article class="card"><h3>{{ item.title }}</h3><p>{{ item.text }}</p></article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section section--tint" id="uslugi">
+  <div class="wrap">
+    <h2 class="section__title">С чем помогаем</h2>
+    <div class="cards">
+      {% for item in content.pages %}
+        <a class="card card--link" href="/{{ item.slug }}">
+          <h3>{{ item.nav_title }}</h3>
+          <p>{{ item.lead }}</p>
+          <span class="card__more">Подробнее</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section" id="calc">
+  <div class="wrap">
+    <h2 class="section__title">Калькулятор по 214-ФЗ</h2>
+    <p class="section__lead">Считает неустойку за просрочку и стоимость недостатков. Показывает, из чего сложилась сумма, и какие периоды выпали из расчёта.</p>
+    <div class="calc-embed">
+      <iframe src="/widget/index.html?policy=/soglasie" title="Калькулятор по 214-ФЗ" loading="lazy" scrolling="no" id="calc-frame"></iframe>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tint">
+  <div class="wrap">
+    <h2 class="section__title">Как мы работаем</h2>
+    <ol class="steps">
+      {% for step in page.steps %}
+        <li><span class="steps__num">{{ loop.index }}</span>
+          <div><b>{{ step.title }}</b><p>{{ step.text }}</p></div></li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap wrap--narrow">
+    <h2 class="section__title">Частые вопросы</h2>
+    <div class="faq">
+      {% for item in page.faq %}
+        <details{% if loop.first %} open{% endif %}>
+          <summary>{{ item.q }}</summary><p>{{ item.a }}</p>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% include "_form.html" %}
+{% endblock %}

@@ -12,10 +12,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import admin, auth, calc, cases, documents, leads
+from .site.routes import router as site_router
 from .env import env, env_list
 from .core.legal_config import LegalConfigError, store
 from .db import init_db
@@ -95,6 +96,6 @@ def embed_script():
     return FileResponse(WIDGET_DIR / "embed.js", media_type="application/javascript")
 
 
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse("/widget/index.html")
+# Публичный сайт подключается последним: у него есть общий маршрут /{slug},
+# и он перехватил бы адреса API и кабинета, если бы шёл раньше.
+app.include_router(site_router)

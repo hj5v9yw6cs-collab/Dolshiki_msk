@@ -545,6 +545,15 @@
     renderSteps();
     loadRateStatus();
 
+    // Страница, на которую встроен калькулятор, может переключить тему.
+    window.addEventListener("message", function (event) {
+      var data = event.data;
+      if (!data || data.type !== "garant-calc-theme") return;
+      if (data.theme !== "light" && data.theme !== "dark") return;
+      document.documentElement.setAttribute("data-theme", data.theme);
+      try { localStorage.setItem("calc-theme", data.theme); } catch (e) { /* приватный режим */ }
+    });
+
     window.addEventListener("resize", notifyHeight);
     if (window.ResizeObserver) {
       new ResizeObserver(notifyHeight).observe(document.documentElement);

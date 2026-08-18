@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .periods import DateRange
+from .workdays import WorkdayRule, parse_workdays
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "legal-config.json"
 
@@ -112,6 +113,7 @@ class LegalConfig:
     delay_penalty: DelayPenaltyRule
     defects_penalty: DefectsPenaltyRule
     consumer_penalty: ConsumerPenaltyRule
+    workdays: WorkdayRule
     disclaimer: str
     raw: Dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -164,6 +166,7 @@ class LegalConfig:
             "delay_penalty": (self.delay_penalty.requires_lawyer_review, "формула неустойки за просрочку передачи"),
             "defects_penalty": (self.defects_penalty.requires_lawyer_review, "формула неустойки по недостаткам"),
             "consumer_penalty": (self.consumer_penalty.requires_lawyer_review, "размер штрафа в пользу потребителя"),
+            "workdays": (self.workdays.requires_lawyer_review, "перенос срока с нерабочего дня (ст. 193 ГК РФ)"),
         }
         warnings: List[str] = []
         for key in used:
@@ -282,6 +285,7 @@ def parse_config(data: Dict[str, Any]) -> LegalConfig:
             note=penalty_block.get("note", ""),
             requires_lawyer_review=bool(penalty_block.get("requires_lawyer_review", True)),
         ),
+        workdays=parse_workdays(data),
         disclaimer=str(data.get("disclaimer", "")),
         raw=data,
     )

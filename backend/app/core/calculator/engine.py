@@ -125,6 +125,22 @@ def _rate_determination_date(
     return obligation_date  # manual — дата нужна только для проверки ограничения
 
 
+def shift_due_date(due: date, config: LegalConfig) -> tuple[date, Optional[str]]:
+    """Переносит срок исполнения с нерабочего дня (ст. 193 ГК РФ).
+
+    Возвращает (дата, примечание). Примечание непустое, только если
+    перенос действительно произошёл — иначе в результате появлялся бы
+    шум на каждом расчёте.
+    """
+    shifted = config.workdays.next_working_day(due)
+    if shifted == due:
+        return due, None
+    return shifted, (
+        f"Срок передачи по договору ({due.strftime('%d.%m.%Y')}) выпал на нерабочий день "
+        f"и перенесён на {shifted.strftime('%d.%m.%Y')} — {config.workdays.basis}."
+    )
+
+
 def _delay_period(
     *,
     start_from: date,
@@ -290,7 +306,8 @@ def calculate_delay(data: DelayInput, config: LegalConfig) -> CalculationResult:
 
     rate_mode = _resolve_rate_mode(data.rate_mode, config)
     end_raw = data.actual_date or today
-    period = _delay_period(start_from=data.due_date, end_raw=end_raw, config=config)
+    due_date, shift_note = shift_due_date(data.due_date, config)
+    period = _delay_period(start_from=due_date, end_raw=end_raw, config=config)
 
     multiplier = (
         config.delay_penalty.individual_multiplier
@@ -298,7 +315,7 @@ def calculate_delay(data: DelayInput, config: LegalConfig) -> CalculationResult:
         else config.delay_penalty.legal_entity_multiplier
     )
     divisor = config.delay_penalty.divisor
-    used_params = ["day_count", "rates", "delay_penalty"]
+    used_params = ["day_count", "rates", "delay_penalty", "workdays"]
 
     if period is None:
         # Просрочки нет: объект передан в срок или раньше.
@@ -323,7 +340,8 @@ def calculate_delay(data: DelayInput, config: LegalConfig) -> CalculationResult:
             rate_mode=rate_mode,
             rate_mode_title=RATE_MODE_TITLES[rate_mode],
             warnings=config.review_warnings(used_params + extra_used),
-            notes=["Просрочка отсутствует: объект передан в срок или ранее срока по договору."],
+            notes=[note for note in [shift_note] if note]
+            + ["Просрочка отсутствует: объект передан в срок или ранее срока по договору."],
             disclaimer=config.disclaimer,
             config_version=config.version,
         )
@@ -335,7 +353,7 @@ def calculate_delay(data: DelayInput, config: LegalConfig) -> CalculationResult:
     for piece in ranges:
         determination_date = _rate_determination_date(
             rate_mode,
-            obligation_date=data.due_date,
+            obligation_date=due_date,
             actual_date=end_raw,
             claim_date=data.claim_date,
             segment_start=piece.start,
@@ -381,6 +399,8 @@ def calculate_delay(data: DelayInput, config: LegalConfig) -> CalculationResult:
     total = round_kopecks(sum((line.amount for line in lines), ZERO))
 
     notes: List[str] = []
+    if shift_note:
+        notes.append(shift_note)
     if data.actual_date is None:
         notes.append(f"Объект не передан: расчёт выполнен по {today.strftime('%d.%m.%Y')}.")
     if excluded:
@@ -422,11 +442,13 @@ def calculate_defects(data: DefectsInput, config: LegalConfig) -> CalculationRes
 
     rules = config.defects_penalty
     rate_mode = _resolve_rate_mode(data.rate_mode, config)
-    deadline = data.demand_served_date + timedelta(days=rules.response_period_days)
+    deadline, shift_note = shift_due_date(
+        data.demand_served_date + timedelta(days=rules.response_period_days), config
+    )
     end_raw = data.satisfied_date or today
     period = _delay_period(start_from=deadline, end_raw=end_raw, config=config)
 
-    used_params = ["day_count", "rates", "defects_penalty"]
+    used_params = ["day_count", "rates", "defects_penalty", "workdays"]
     excluded: List[ExcludedPeriod] = []
     segments: List[Segment] = []
     neustoyka = ZERO
@@ -522,6 +544,8 @@ def calculate_defects(data: DefectsInput, config: LegalConfig) -> CalculationRes
     total = round_kopecks(sum((line.amount for line in lines), ZERO))
 
     notes: List[str] = []
+    if shift_note:
+        notes.append(shift_note)
     if data.satisfied_date is None:
         notes.append(f"Требование не удовлетворено: расчёт выполнен по {today.strftime('%d.%m.%Y')}.")
     notes.append(

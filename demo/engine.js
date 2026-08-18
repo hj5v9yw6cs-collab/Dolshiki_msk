@@ -176,9 +176,27 @@
       }).sort(function (a, b) { return a.start - b.start; });
     };
 
+    var work = raw.working_days || {};
+    var toDaySet = function (list) {
+      var set = {};
+      (list || []).forEach(function (value) { set[toDay(value)] = true; });
+      return set;
+    };
+
     return {
       version: raw.version || 0,
       disclaimer: raw.disclaimer || "",
+      workdays: {
+        apply: work.apply_article_193 === true,
+        weekend: work.weekend_weekdays || [5, 6],
+        holidays: (work.holidays_every_year || []).reduce(function (acc, value) {
+          acc[value] = true; return acc;
+        }, {}),
+        extraNonWorking: toDaySet(work.extra_non_working),
+        workingExceptions: toDaySet(work.working_exceptions),
+        basis: work.basis || "",
+        review: work.requires_lawyer_review !== false
+      },
       dayCount: {
         mode: (raw.day_count_rule || {}).mode || "inclusive_both_ends",
         offset: (raw.day_count_rule || {}).start_offset_days,
@@ -216,6 +234,17 @@
     };
   }
 
+  /** Номер дня недели: 0 — понедельник, как в Python. */
+  function weekdayOf(day) {
+    return (((day % 7) + 7) % 7 + 3) % 7;
+  }
+
+  function monthDay(day) {
+    var d = new Date(day * DAY_MS);
+    var pad = function (n) { return n < 10 ? "0" + n : String(n); };
+    return pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+  }
+
   var RATE_MODE_TITLES = {
     on_obligation_date: "ставка на день исполнения обязательства по договору",
     on_actual_date: "ставка на дату фактической передачи объекта",
@@ -229,7 +258,8 @@
     rates: "история ключевой ставки ЦБ",
     delay_penalty: "формула неустойки за просрочку передачи",
     defects_penalty: "формула неустойки по недостаткам",
-    consumer_penalty: "размер штрафа в пользу потребителя"
+    consumer_penalty: "размер штрафа в пользу потребителя",
+    workdays: "перенос срока с нерабочего дня (ст. 193 ГК РФ)"
   };
 
   function CalcError(message) {
@@ -240,6 +270,30 @@
 
   function createEngine(rawConfig) {
     var config = prepareConfig(rawConfig);
+
+    function isNonWorking(day) {
+      var rules = config.workdays;
+      if (rules.workingExceptions[day]) return false;
+      if (rules.extraNonWorking[day]) return true;
+      if (rules.weekend.indexOf(weekdayOf(day)) !== -1) return true;
+      return rules.holidays[monthDay(day)] === true;
+    }
+
+    /** Перенос срока с нерабочего дня — ст. 193 ГК РФ. */
+    function shiftDueDate(due) {
+      if (!config.workdays.apply) return { day: due, note: null };
+      var shifted = due;
+      for (var i = 0; i < 30; i++) {
+        if (!isNonWorking(shifted)) break;
+        shifted += 1;
+      }
+      if (shifted === due) return { day: due, note: null };
+      return {
+        day: shifted,
+        note: "Срок передачи по договору (" + displayDay(due) + ") выпал на нерабочий день и перенесён на "
+          + displayDay(shifted) + " — " + config.workdays.basis + "."
+      };
+    }
 
     function rateOn(day) {
       var applicable = null;
@@ -401,7 +455,8 @@
       var flags = {
         day_count: config.dayCount.review, rates: config.ratesReview,
         delay_penalty: config.delay.review, defects_penalty: config.defects.review,
-        consumer_penalty: config.penalty.review
+        consumer_penalty: config.penalty.review,
+        workdays: config.workdays.review
       };
       return used.filter(function (key) { return flags[key]; }).map(function (key) {
         return "Параметр «" + REVIEW_TITLES[key] + "» не подтверждён юристом (requires_lawyer_review).";
@@ -465,16 +520,19 @@
       if (!RATE_MODE_TITLES[rateMode]) throw CalcError("Неизвестный режим определения ставки: " + rateMode);
 
       var endRaw = actualDay == null ? today : actualDay;
+      var shift = shiftDueDate(dueDay);
+      dueDay = shift.day;
       var period = delayPeriod(dueDay, endRaw);
       var multiplier = input.is_individual === false ? config.delay.legalEntity : config.delay.individual;
-      var used = ["day_count", "rates", "delay_penalty"];
+      var used = ["day_count", "rates", "delay_penalty", "workdays"];
 
       if (!period) {
         var none = extraLines(0n, input.moral_harm, 0n, input.include_consumer_penalty !== false, input.expenses);
         return finish({
           mode: "delay", period: emptyPeriod(), segments: [], excluded: [],
           lines: none.lines, rateMode: rateMode, used: used.concat(none.used),
-          notes: ["Просрочка отсутствует: объект передан в срок или ранее срока по договору."]
+          notes: (shift.note ? [shift.note] : [])
+            .concat(["Просрочка отсутствует: объект передан в срок или ранее срока по договору."])
         });
       }
 
@@ -494,6 +552,7 @@
       lines = lines.concat(extras.lines);
 
       var notes = [];
+      if (shift.note) notes.push(shift.note);
       if (actualDay == null) notes.push("Объект не передан: расчёт выполнен по " + displayDay(today) + ".");
       if (excluded.length) notes.push("Из расчёта исключены мораторные периоды — см. отдельную таблицу с основаниями.");
 
@@ -520,10 +579,11 @@
       var rateMode = input.rate_mode || config.delay.defaultRateMode;
       if (!RATE_MODE_TITLES[rateMode]) throw CalcError("Неизвестный режим определения ставки: " + rateMode);
 
-      var deadline = servedDay + config.defects.responseDays;
+      var deadlineShift = shiftDueDate(servedDay + config.defects.responseDays);
+      var deadline = deadlineShift.day;
       var endRaw = satisfiedDay == null ? today : satisfiedDay;
       var period = delayPeriod(deadline, endRaw);
-      var used = ["day_count", "rates", "defects_penalty"];
+      var used = ["day_count", "rates", "defects_penalty", "workdays"];
 
       var excluded = [];
       var segments = [];
@@ -571,6 +631,7 @@
       lines = lines.concat(extras.lines);
 
       var notes = [];
+      if (deadlineShift.note) notes.push(deadlineShift.note);
       if (satisfiedDay == null) notes.push("Требование не удовлетворено: расчёт выполнен по " + displayDay(today) + ".");
       notes.push("Срок на удовлетворение требования — " + config.defects.responseDays +
         " дн., просрочка исчисляется с " + displayDay(deadline + config.dayCount.offset) + ".");

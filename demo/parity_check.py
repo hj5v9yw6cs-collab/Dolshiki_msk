@@ -164,6 +164,13 @@ def build_cases(count: int, rng: random.Random) -> list[dict]:
         ("delay", {"contract_price": "7777777", "due_date": "2024-01-01", "actual_date": None,
                    "rate_mode": "per_segment", "moral_harm": "50000"}),
         ("delay", {"contract_price": "1", "due_date": "2023-01-01", "actual_date": "2023-01-02"}),
+        # Срок выпадает на нерабочий день — перенос по ст. 193 ГК РФ.
+        ("delay", {"contract_price": "1000000", "due_date": "2024-11-30", "actual_date": "2024-12-10"}),
+        ("delay", {"contract_price": "1000000", "due_date": "2024-12-01", "actual_date": "2024-12-10"}),
+        ("delay", {"contract_price": "1000000", "due_date": "2025-01-01", "actual_date": "2025-02-01"}),
+        ("delay", {"contract_price": "1000000", "due_date": "2024-11-30", "actual_date": "2024-12-02"}),
+        ("delay", {"contract_price": "1000000", "due_date": "2026-06-12", "actual_date": "2026-07-01"}),
+        ("defects", {"repair_cost": "300000", "demand_served_date": "2024-11-21", "satisfied_date": "2024-12-20"}),
         ("defects", {"repair_cost": "300000", "demand_served_date": "2022-01-01", "satisfied_date": "2022-01-21"}),
         ("defects", {"repair_cost": "300000", "demand_served_date": "2023-01-01", "satisfied_date": "2025-12-31"}),
         ("defects", {"repair_cost": "450000", "demand_served_date": "2025-07-01", "satisfied_date": None,

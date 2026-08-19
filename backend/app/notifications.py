@@ -18,7 +18,9 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 def _escape(text: str | None) -> str:
-    return (text or "").replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;")
+    # Амперсанд заменяется первым: иначе уже подставленные &lt; и &gt;
+    # экранируются повторно и в чат приходит «&amp;lt;» вместо «<».
+    return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def build_message(lead) -> str:

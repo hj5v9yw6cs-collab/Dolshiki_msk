@@ -18,7 +18,7 @@ from ..core.security import (
 from ..db import get_session
 from ..models import Session, User
 from ..schemas import LoginRequest, PasswordChange
-from .deps import Actor, current_actor, login_limiter, client_ip
+from .deps import Actor, client_ip, current_actor, login_account_limiter, login_limiter
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Доступ"])
 
@@ -39,8 +39,10 @@ def user_payload(user: User) -> dict:
 def login(payload: LoginRequest, request: Request, session: DbSession = Depends(get_session)) -> dict:
     # Ограничение попыток: пароли у четверых сотрудников, перебор недопустим.
     login_limiter.check(client_ip(request))
+    email = payload.email.strip().lower()
+    login_account_limiter.check(email)
 
-    user = session.scalars(select(User).where(User.email == payload.email.strip().lower())).first()
+    user = session.scalars(select(User).where(User.email == email)).first()
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         # Один и тот же ответ на «нет пользователя» и «неверный пароль»:
         # иначе можно узнать, кто заведён в системе.

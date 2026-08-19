@@ -8,6 +8,19 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "SAMEORIGIN"
 		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Политика содержимого: браузеру разрешено брать скрипты, стили и
+		# картинки только с этого домена. Даже если на страницу попадёт чужой
+		# код, подгрузить внешний скрипт или отправить данные клиента на
+		# сторонний адрес он не сможет. Свои страницы держат один встроенный
+		# скрипт (переключение темы до отрисовки), поэтому inline разрешён.
+		# blob: нужен просмотру документов: файл скачивается с токеном и
+		# показывается из памяти вкладки, а не по прямой ссылке.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
+
+		# Камера, микрофон и геопозиция сайту не нужны — отзываем.
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
 		-Server
 	}
 

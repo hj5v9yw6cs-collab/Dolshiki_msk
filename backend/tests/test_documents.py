@@ -733,3 +733,26 @@ def test_developer_name_survives_a_line_break_inside_the_quotes():
     data = extract_requisites(DEVELOPER_STYLE_DDU, "ddu").as_dict()
 
     assert data["developer_name"] == 'ООО «СПЕЦИАЛИЗИРОВАННЫЙ ЗАСТРОЙЩИК «СР-ГРУПП»»'
+
+
+def test_registry_does_not_hand_excel_a_formula_from_the_lead_form(api_client, staff):
+    """Имя в заявке пишет посетитель сайта, а реестр открывает юрист.
+
+    Строка, начинающаяся со знака равенства, для Excel не текст, а формула,
+    и выполняется она при открытии файла.
+    """
+    from openpyxl import load_workbook
+
+    api_client.post(
+        "/api/v1/cases",
+        json={"client_name": '=HYPERLINK("http://example.invalid","отчёт")',
+              "client_phone": "+79000000003"},
+        headers=staff["manager"],
+    )
+
+    response = api_client.get("/api/v1/cases.xlsx", headers=staff["manager"])
+    sheet = load_workbook(io.BytesIO(response.content))["Дела"]
+    values = [cell.value for row in sheet.iter_rows() for cell in row if isinstance(cell.value, str)]
+
+    assert not any(value.startswith("=") for value in values), "формула ушла в файл как формула"
+    assert any(value.startswith("'=HYPERLINK") for value in values), "значение потерялось"

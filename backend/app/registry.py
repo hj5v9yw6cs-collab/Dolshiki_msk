@@ -30,9 +30,26 @@ def _money(value: Optional[Decimal]):
     return float(value) if value is not None else None
 
 
+# Excel считает формулой всё, что начинается с этих знаков, и выполняет её
+# при открытии файла. Имя и объект в заявке пишет посетитель сайта, то есть
+# кто угодно, — и его строка попадает в реестр, который открывает юрист.
+# Апостроф перед значением делает ячейку текстом и обезвреживает подстановку.
+FORMULA_STARTERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe(value):
+    if isinstance(value, str) and value.startswith(FORMULA_STARTERS):
+        return "'" + value
+    return value
+
+
+def _row(sheet, values) -> None:
+    sheet.append([_safe(value) for value in values])
+
+
 def _sheet(workbook: Workbook, title: str, columns: Sequence[tuple[str, int]]):
     sheet = workbook.create_sheet(title)
-    sheet.append([name for name, _ in columns])
+    _row(sheet, [name for name, _ in columns])
     for index, (_, width) in enumerate(columns, start=1):
         sheet.column_dimensions[get_column_letter(index)].width = width
         cell = sheet.cell(row=1, column=index)
@@ -97,7 +114,7 @@ def _cases_sheet(workbook: Workbook, cases: Sequence, today: date, with_money: b
             len(documents),
             "готов" if checklist["ready"] else f"нет {checklist['missing_required']}",
         ]
-        sheet.append(row)
+        _row(sheet, row)
 
         current = sheet.max_row
         if deadline and deadline.is_overdue:
@@ -133,7 +150,7 @@ def _documents_sheet(workbook: Workbook, cases: Sequence) -> None:
 
     for case in cases:
         for document in case.documents:
-            sheet.append([
+            _row(sheet, [
                 case.number,
                 case.client.full_name if case.client else "",
                 _doc_title(document.doc_type),
@@ -170,7 +187,7 @@ def _hearings_sheet(workbook: Workbook, cases: Sequence) -> None:
         key=lambda case: case.next_hearing_on,
     )
     for case in upcoming:
-        sheet.append([
+        _row(sheet, [
             case.next_hearing_on, "",
             case.number,
             case.client.full_name if case.client else "",

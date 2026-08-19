@@ -2,7 +2,7 @@
 
 from conftest import config_dict
 
-ADMIN = {"Authorization": "Bearer test-admin-token"}
+ADMIN = {"Authorization": "Bearer test-admin-token-dlinnyy-dostatochno"}
 
 DELAY_PAYLOAD = {
     "contract_price": "1000000",
@@ -321,3 +321,51 @@ def test_short_new_password_is_refused(api_client, staff):
     )
 
     assert response.status_code == 400
+
+
+# --- ограничение попыток входа ---------------------------------------------
+
+
+def test_forwarded_header_from_the_outside_does_not_reset_the_limit(api_client, staff):
+    """Подделанный X-Forwarded-For не должен давать новый счётчик попыток.
+
+    Заголовок присылает браузер, а не только прокси. Пока брался первый
+    адрес из списка, подбор пароля обходил ограничение полностью: меняй
+    заголовок в каждом запросе — и попытки считаются заново.
+    """
+    wrong = {"email": "urist@dolshikirf.ru", "password": "не тот пароль"}
+
+    codes = []
+    for attempt in range(14):
+        response = api_client.post(
+            "/api/v1/auth/login", json=wrong,
+            headers={"X-Forwarded-For": f"203.0.113.{attempt}"},
+        )
+        codes.append(response.status_code)
+
+    assert 429 in codes, "подбор не был остановлен"
+
+
+def test_attempts_are_counted_per_account_too(api_client, staff):
+    """Подбор с разных адресов по одной учётной записи тоже ограничен."""
+    from app.api.deps import login_limiter
+
+    for _ in range(12):
+        login_limiter.reset()  # как будто каждый запрос с нового адреса
+        response = api_client.post(
+            "/api/v1/auth/login",
+            json={"email": "urist@dolshikirf.ru", "password": "не тот пароль"},
+        )
+
+    assert response.status_code == 429
+
+
+def test_short_admin_token_is_not_accepted(api_client, monkeypatch):
+    """Заготовка из .env не должна молча стать рабочим ключом руководителя."""
+    monkeypatch.setenv("ADMIN_TOKEN", "korotkiy")
+
+    response = api_client.get(
+        "/api/v1/admin/legal-config/history", headers={"Authorization": "Bearer korotkiy"}
+    )
+
+    assert response.status_code == 401

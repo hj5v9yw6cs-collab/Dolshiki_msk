@@ -14,7 +14,7 @@ if str(BACKEND_ROOT) not in sys.path:
 _TEST_ROOT = Path(tempfile.mkdtemp(prefix="dolshiki-tests-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_ROOT / 'test.db'}"
 os.environ["DATA_DIR"] = str(_TEST_ROOT)
-os.environ["ADMIN_TOKEN"] = "test-admin-token"
+os.environ["ADMIN_TOKEN"] = "test-admin-token-dlinnyy-dostatochno"
 
 from app.core.legal_config import parse_config  # noqa: E402
 
@@ -141,6 +141,20 @@ def api_client(tmp_path):
 
 MANAGER = {"email": "boss@dolshikirf.ru", "password": "manager-pass-1", "name": "Руководитель"}
 LAWYER = {"email": "urist@dolshikirf.ru", "password": "lawyer-pass-1", "name": "Юрист Ирина"}
+
+
+@pytest.fixture(autouse=True)
+def _forget_rate_limits():
+    """Счётчики попыток общие на процесс, а тесты входят десятками раз.
+
+    Без сброса ограничение по учётной записи срабатывает в середине прогона
+    и роняет соседние тесты — не потому, что они сломаны.
+    """
+    from app.api.deps import calc_limiter, lead_limiter, login_account_limiter, login_limiter
+
+    for limiter in (login_limiter, login_account_limiter, lead_limiter, calc_limiter):
+        limiter.reset()
+    yield
 
 
 @pytest.fixture

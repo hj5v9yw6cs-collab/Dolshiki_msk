@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Интерактивная документация показывает всю карту API — какие адреса есть,
+# что они принимают, где лежат заявки и дела. Разработке это помогает,
+# постороннему на боевом сервере — только подсказывает, куда стучаться.
+# Включается переменной API_DOCS=on.
+_docs_enabled = env("API_DOCS", "off").strip().lower() in ("on", "1", "true", "yes")
+
 app = FastAPI(
     title="Калькулятор неустойки 214-ФЗ и приём заявок",
     version="1.0.0",
@@ -56,6 +62,9 @@ app = FastAPI(
         "приём заявок с сайта, редактирование юридических параметров."
     ),
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 # Виджет встраивается на dolshikirf.ru, поэтому кросс-доменные запросы нужны.

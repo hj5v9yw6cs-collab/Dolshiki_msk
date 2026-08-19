@@ -16,6 +16,9 @@
   var POLICY_VERSION = window.CALC_POLICY_VERSION || query.get("policy_version") || "1.0";
 
   var LAST_STEP = 4;
+  // Встроен в собственный сайт: служебные сообщения о синхронизации ставки
+  // адресованы юристу, а не посетителю, и здесь не показываются.
+  var IN_PAGE = document.documentElement.classList.contains("calc-in-page");
   var state = { mode: null, step: 1, calculationId: null, rateBannerShown: false };
 
   function $(id) { return document.getElementById(id); }
@@ -328,7 +331,7 @@
       );
     }
     var rate = result.rate_status;
-    if (rate && rate.is_stale && rate.warning && !state.rateBannerShown) {
+    if (!IN_PAGE && rate && rate.is_stale && rate.warning && !state.rateBannerShown) {
       blocks.push(noteHtml("warn", "Ставка ЦБ из локальной копии", rate.warning));
     }
     $("r-warnings").innerHTML = blocks.join("");
@@ -447,6 +450,7 @@
   // --- состояние ставки ----------------------------------------------------
 
   function loadRateStatus() {
+    if (IN_PAGE) return;
     callApi("/api/v1/rate")
       .then(function (status) {
         if (status.is_stale && status.warning) {

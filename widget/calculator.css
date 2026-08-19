@@ -522,3 +522,24 @@ table.t tr.grand td {
   .steps__list li:first-child { text-align: left; }
   .steps__list li:last-child { text-align: right; }
 }
+
+/* --- встроенный режим (?embed=1) ------------------------------------------
+   На собственном сайте калькулятор — часть страницы, а не отдельный виджет:
+   у страницы уже есть заголовок раздела и переключатель темы, поэтому свои
+   он не показывает, а карточку рисует хозяин страницы. */
+
+html.calc-in-page,
+html.calc-in-page body.calc-standalone {
+  background: transparent;
+}
+html.calc-in-page body.calc-standalone { padding: 0; }
+html.calc-in-page .calc {
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+html.calc-in-page .top { display: none; }
+/* Первый видимый блок остаётся без верхнего отступа шапки. */
+html.calc-in-page .steps { padding-top: 4px; }

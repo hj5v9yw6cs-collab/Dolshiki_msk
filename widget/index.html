@@ -13,6 +13,11 @@
       document.documentElement.setAttribute("data-theme", saved);
     }
   } catch (e) { /* приватный режим — остаёмся на системной теме */ }
+  // На своём сайте калькулятор идёт без рамки, заголовка и переключателя темы:
+  // он часть страницы, а не отдельный виджет в рамке.
+  if (new URLSearchParams(window.location.search).get("embed") === "1") {
+    document.documentElement.classList.add("calc-in-page");
+  }
 </script>
 </head>
 <body class="calc-standalone">
@@ -335,7 +340,6 @@
                 <label for="l-region">Регион</label>
                 <select id="l-region">
                   <option value="msk">Москва и область</option>
-                  <option value="spb">Санкт-Петербург и область</option>
                   <option value="kzn">Казань и Татарстан</option>
                   <option value="other">Другой регион</option>
                 </select>

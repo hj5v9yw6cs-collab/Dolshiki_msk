@@ -107,11 +107,21 @@ def test_service_route_does_not_swallow_api_and_cabinet(api_client):
     assert api_client.get("/api/v1/cases").status_code == 401
 
 
-def test_legal_pages_are_marked_as_drafts(api_client):
+def test_legal_pages_name_the_operator(api_client):
+    """Без реквизитов оператора документ по 152-ФЗ не работает."""
     for path in ("/politika", "/soglasie"):
         page = html(api_client, path)
-        assert "Черновик" in page, f"{path}: не хватает пометки о проверке юристом"
-        assert "требует проверки юристом" in page
+        assert "Оператор персональных данных" in page, f"{path}: не назван оператор"
+        assert "ИНН 120101147767" in page, f"{path}: нет ИНН оператора"
+        assert "Танковая" in page, f"{path}: нет адреса для обращений"
+        assert "0000000000" not in page, f"{path}: остался ИНН-заглушка"
+
+
+def test_policy_names_a_retention_period(api_client):
+    page = html(api_client, "/politika")
+
+    assert "трёх лет" in page
+    assert "должен определить юрист" not in page
 
 
 def test_contacts_page_shows_requisites(api_client):

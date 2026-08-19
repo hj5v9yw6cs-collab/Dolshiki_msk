@@ -53,7 +53,7 @@ def organization_schema(data: Content, origin: str) -> Dict[str, Any]:
         "url": origin,
         "telephone": company.get("phone"),
         "email": company.get("email"),
-        "areaServed": [office for office in ("Москва", "Санкт-Петербург", "Казань")],
+        "areaServed": [office for office in ("Москва", "Казань")],
         "description": data.seo.get("default_description", ""),
     }
 

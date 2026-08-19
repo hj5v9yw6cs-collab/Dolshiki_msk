@@ -283,3 +283,41 @@ def test_database_url_is_always_a_usable_url():
 
     assert app.db.DATABASE_URL
     assert "://" in app.db.DATABASE_URL
+
+
+# --- смена пароля ----------------------------------------------------------
+
+
+def test_user_changes_own_password(api_client, staff):
+    response = api_client.post(
+        "/api/v1/auth/password",
+        json={"current_password": "lawyer-pass-1", "new_password": "novyy-parol-2026"},
+        headers=staff["lawyer"],
+    )
+
+    assert response.status_code == 200
+    assert api_client.post(
+        "/api/v1/auth/login",
+        json={"email": "urist@dolshikirf.ru", "password": "novyy-parol-2026"},
+    ).status_code == 200
+
+
+def test_wrong_current_password_is_refused(api_client, staff):
+    response = api_client.post(
+        "/api/v1/auth/password",
+        json={"current_password": "ne-tot-parol", "new_password": "novyy-parol-2026"},
+        headers=staff["lawyer"],
+    )
+
+    assert response.status_code == 400
+    assert "неверен" in response.json()["detail"]
+
+
+def test_short_new_password_is_refused(api_client, staff):
+    response = api_client.post(
+        "/api/v1/auth/password",
+        json={"current_password": "lawyer-pass-1", "new_password": "korotko"},
+        headers=staff["lawyer"],
+    )
+
+    assert response.status_code == 400

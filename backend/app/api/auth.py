@@ -9,10 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from ..casework import ROLES
-from ..core.security import new_session_token, token_fingerprint, verify_password
+from ..core.security import (
+    hash_password,
+    new_session_token,
+    token_fingerprint,
+    verify_password,
+)
 from ..db import get_session
 from ..models import Session, User
-from ..schemas import LoginRequest
+from ..schemas import LoginRequest, PasswordChange
 from .deps import Actor, current_actor, login_limiter, client_ip
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Доступ"])
@@ -62,6 +67,38 @@ def logout(
         if record:
             session.delete(record)
             session.commit()
+    return {"ok": True}
+
+
+@router.post("/password", summary="Сменить свой пароль")
+def change_password(
+    payload: PasswordChange,
+    actor: Actor = Depends(current_actor),
+    session: DbSession = Depends(get_session),
+) -> dict:
+    """Меняет пароль текущего сотрудника.
+
+    Восстановления по почте нет и не будет: адреса в системе служат логинами,
+    ящиков за ними не стоит. Поэтому свой пароль сотрудник меняет, зная
+    старый, а забытый сбрасывает руководитель через scripts/set_password.py.
+    """
+    if actor.user is None:
+        raise HTTPException(status_code=403, detail="Служебный доступ пароль не меняет.")
+
+    if not verify_password(payload.current_password, actor.user.password_hash):
+        raise HTTPException(status_code=400, detail="Текущий пароль неверен.")
+
+    try:
+        actor.user.password_hash = hash_password(payload.new_password)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    # Остальные сессии закрываются: пароль меняют в том числе тогда, когда
+    # прежний мог утечь, и старый вход не должен пережить смену.
+    for record in session.scalars(select(Session).where(Session.user_id == actor.user.id)):
+        if record.id != actor.session_id:
+            session.delete(record)
+    session.commit()
     return {"ok": True}
 
 

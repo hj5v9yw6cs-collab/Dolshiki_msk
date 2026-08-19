@@ -94,6 +94,14 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=200)
 
 
+class PasswordChange(BaseModel):
+    """Смена своего пароля. Длину проверяет hash_password — там же, где она
+    задана для всех остальных способов завести пароль."""
+
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=1, max_length=200)
+
+
 class CaseCreate(BaseModel):
     """Создание дела. Клиент заводится тут же — отдельный справочник
     на потоке в 30 дел в месяц только добавляет кликов."""

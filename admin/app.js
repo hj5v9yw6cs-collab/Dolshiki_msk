@@ -669,6 +669,60 @@
     box.querySelector("[data-field]").focus();
   }
 
+  // --- смена пароля ----------------------------------------------------------
+
+  function passwordModal() {
+    var box = document.createElement("div");
+    box.className = "modal";
+    box.innerHTML =
+      '<div class="modal__box">' +
+      '<h2 class="modal__title">Смена пароля</h2>' +
+      '<p class="modal__sub">Нужен текущий пароль. Остальные ваши входы закроются — ' +
+      "на других устройствах придётся войти заново.</p>" +
+      '<div class="grid2">' +
+      field("Текущий пароль", "current_password", "", "password") +
+      field("Новый пароль", "new_password", "", "password") +
+      field("Новый пароль ещё раз", "repeat", "", "password") +
+      "</div>" +
+      '<div id="modal-error"></div>' +
+      '<div class="modal__actions">' +
+      '<button type="button" class="btn btn--outline" data-close>Отмена</button>' +
+      '<button type="button" class="btn btn--solid" data-save>Сменить</button>' +
+      "</div></div>";
+
+    $("modal-root").appendChild(box);
+
+    var close = function () { box.remove(); };
+    var fail = function (text) {
+      box.querySelector("#modal-error").innerHTML =
+        '<div class="note-box note-box--error">' + esc(text) + "</div>";
+    };
+    var value = function (name) {
+      return box.querySelector('[data-field="' + name + '"]').value;
+    };
+
+    on(box.querySelector("[data-close]"), "click", close);
+    on(box, "click", function (event) { if (event.target === box) close(); });
+
+    on(box.querySelector("[data-save]"), "click", function () {
+      if (value("new_password") !== value("repeat")) {
+        fail("Новые пароли не совпали.");
+        return;
+      }
+      api("/api/v1/auth/password", {
+        method: "POST",
+        body: { current_password: value("current_password"), new_password: value("new_password") }
+      })
+        .then(function () {
+          close();
+          toast("ok", "Пароль изменён");
+        })
+        .catch(function (error) { fail(error.message); });
+    });
+
+    box.querySelector("[data-field]").focus();
+  }
+
   // --- запуск ----------------------------------------------------------------
 
   function fillFilters() {
@@ -721,6 +775,8 @@
         button.textContent = "Войти";
       });
     });
+
+    on($("change-password"), "click", passwordModal);
 
     on($("logout"), "click", function () {
       api("/api/v1/auth/logout", { method: "POST" }).catch(function () { /* всё равно выходим */ });

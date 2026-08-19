@@ -120,7 +120,7 @@ def test_legal_pages_name_the_operator(api_client):
 def test_policy_names_a_retention_period(api_client):
     page = html(api_client, "/politika")
 
-    assert "трёх лет" in page
+    assert "одного года" in page
     assert "должен определить юрист" not in page
 
 

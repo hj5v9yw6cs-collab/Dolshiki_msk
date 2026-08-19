@@ -497,3 +497,37 @@ def test_calculation_from_the_site_becomes_the_claimed_amount(api_client, staff)
 
 def test_converting_an_unknown_lead_returns_404(api_client, staff):
     assert api_client.post("/api/v1/leads/нет/convert", json={}, headers=staff["lawyer"]).status_code == 404
+
+
+# --- удаление дела ---------------------------------------------------------
+
+
+def test_manager_deletes_a_case_with_its_documents(api_client, staff):
+    created = api_client.post(
+        "/api/v1/cases",
+        json={"client_name": "Удаляемый Клиент", "client_phone": "+79000000001"},
+        headers=staff["manager"],
+    ).json()
+
+    response = api_client.delete(f"/api/v1/cases/{created['id']}", headers=staff["manager"])
+
+    assert response.status_code == 200
+    assert api_client.get(
+        f"/api/v1/cases/{created['id']}", headers=staff["manager"]
+    ).status_code == 404
+
+
+def test_lawyer_cannot_delete_a_case(api_client, staff):
+    """В деле паспорта клиента — удаление оставлено руководителю."""
+    created = api_client.post(
+        "/api/v1/cases",
+        json={"client_name": "Сохраняемый Клиент", "client_phone": "+79000000002"},
+        headers=staff["manager"],
+    ).json()
+
+    response = api_client.delete(f"/api/v1/cases/{created['id']}", headers=staff["lawyer"])
+
+    assert response.status_code == 403
+    assert api_client.get(
+        f"/api/v1/cases/{created['id']}", headers=staff["lawyer"]
+    ).status_code == 200

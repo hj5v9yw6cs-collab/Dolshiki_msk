@@ -21,11 +21,11 @@ from ..casework import (
     stage_catalog,
     stage_title,
 )
-from ..db import get_session
-from ..models import Case, CaseEvent, Client, Developer, Lead, User
+from ..db import DATA_DIR, get_session
+from ..models import Case, CaseEvent, Client, Developer, Document, DocumentAccess, Lead, User
 from ..presenters import format_money
 from ..schemas import CaseCreate, CaseUpdate, LeadConvert, NoteCreate, StageChange
-from .deps import Actor, current_actor
+from .deps import Actor, current_actor, require_manager
 
 router = APIRouter(prefix="/api/v1", tags=["Дела"])
 
@@ -452,6 +452,58 @@ def _readable(value, field: str, session: DbSession) -> str:
     if isinstance(value, date):
         return value.strftime("%d.%m.%Y")
     return str(value)
+
+
+@router.delete("/cases/{case_id}", summary="Удалить дело")
+def delete_case(
+    case_id: str,
+    actor: Actor = Depends(require_manager),
+    session: DbSession = Depends(get_session),
+) -> dict:
+    """Удаляет дело со всеми документами и лентой.
+
+    Только руководитель: в деле лежат паспорта и договоры клиента, и это
+    действие необратимо. Вместе с делом уходят файлы с диска, записи ленты
+    и журнал доступа к его документам — по 152-ФЗ хранить их после удаления
+    самих данных незачем.
+
+    Клиент остаётся: у него могут быть другие дела. Если это было
+    единственное, удаляется и он — иначе в базе копятся паспортные данные
+    людей, дела которых закрыты и стёрты.
+    """
+    from ..documents import case_folder  # локально: модуль тянет разбор документов
+
+    case = session.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Дело не найдено.")
+
+    number, client = case.number, case.client
+
+    folder = case_folder(
+        DATA_DIR, case.number, client.full_name if client else "", case.created_at.date()
+    )
+    for document in session.scalars(select(Document).where(Document.case_id == case.id)):
+        (folder / document.folder / document.stored_name).unlink(missing_ok=True)
+        session.delete(document)
+
+    for access in session.scalars(select(DocumentAccess).where(DocumentAccess.case_id == case.id)):
+        session.delete(access)
+    for event in session.scalars(select(CaseEvent).where(CaseEvent.case_id == case.id)):
+        session.delete(event)
+
+    session.delete(case)
+    session.flush()
+
+    if client is not None:
+        others = session.scalars(select(Case).where(Case.client_id == client.id)).first()
+        if others is None:
+            session.delete(client)
+
+    session.commit()
+
+    # Пустые папки дела остаются на диске: файлов в них уже нет, а удалять
+    # каталоги рекурсивно из обработчика — лишний риск ошибиться путём.
+    return {"ok": True, "number": number}
 
 
 @router.post("/cases/{case_id}/stage", summary="Перевести на другую стадию")

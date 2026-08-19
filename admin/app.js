@@ -293,6 +293,9 @@
       (data.calculation_id
         ? '<a class="btn btn--outline btn--sm" target="_blank" rel="noopener" href="/api/v1/calc/' +
           esc(data.calculation_id) + '/print">Расчёт для суда</a>' : "") +
+      (state.user && state.user.role === "manager"
+        ? '<button type="button" class="btn btn--quiet btn--sm" id="delete-case">Удалить дело</button>'
+        : "") +
       "</div></div>";
 
     html += '<div class="cols"><div>';
@@ -390,6 +393,8 @@
     window.scrollTo({ top: 0 });
 
     on($("case-back"), "click", function () { loadCases(); });
+    on($("delete-case"), "click", function () { deleteCaseModal(data); });
+
     on($("case-stage"), "change", function () {
       api("/api/v1/cases/" + data.id + "/stage", { method: "POST", body: { stage: this.value } })
         .then(function (updated) { renderCase(updated); toast("ok", "Стадия обновлена"); })
@@ -738,6 +743,52 @@
           close();
           toast("ok", "Дело № " + created.number + " заведено");
           renderCase(created);
+        })
+        .catch(function (error) {
+          box.querySelector("#modal-error").innerHTML =
+            '<div class="note-box note-box--error">' + esc(error.message) + "</div>";
+        });
+    });
+
+    box.querySelector("[data-field]").focus();
+  }
+
+  // --- удаление дела ---------------------------------------------------------
+
+  function deleteCaseModal(data) {
+    var box = document.createElement("div");
+    box.className = "modal";
+    box.innerHTML =
+      '<div class="modal__box">' +
+      '<h2 class="modal__title">Удалить дело № ' + esc(data.number) + "?</h2>" +
+      '<p class="modal__sub">Вместе с делом будут стёрты все его документы, ' +
+      "лента и журнал доступа. Восстановить их будет нечем — только из ночной " +
+      "резервной копии. Чтобы подтвердить, введите номер дела.</p>" +
+      '<div class="field"><label>Номер дела</label>' +
+      '<input type="text" data-field="number" autocomplete="off"></div>' +
+      '<div id="modal-error"></div>' +
+      '<div class="modal__actions">' +
+      '<button type="button" class="btn btn--outline" data-close>Отмена</button>' +
+      '<button type="button" class="btn btn--solid" data-save>Удалить</button>' +
+      "</div></div>";
+    $("modal-root").appendChild(box);
+
+    var close = function () { box.remove(); };
+    on(box.querySelector("[data-close]"), "click", close);
+    on(box, "click", function (event) { if (event.target === box) close(); });
+
+    on(box.querySelector("[data-save]"), "click", function () {
+      var typed = box.querySelector('[data-field="number"]').value.trim();
+      if (typed !== data.number) {
+        box.querySelector("#modal-error").innerHTML =
+          '<div class="note-box note-box--error">Номер не совпадает.</div>';
+        return;
+      }
+      api("/api/v1/cases/" + data.id, { method: "DELETE" })
+        .then(function () {
+          close();
+          toast("ok", "Дело № " + data.number + " удалено");
+          switchTab("cases");
         })
         .catch(function (error) {
           box.querySelector("#modal-error").innerHTML =

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import zipfile
 from pathlib import Path
 
@@ -43,6 +44,37 @@ def _from_docx(path: Path) -> str:
     return "\n".join(parts)
 
 
+def _from_doc(path: Path) -> str:
+    """Текст из старого .doc (Word 97 — тот, что делает и WPS Office).
+
+    Полноценного разбора формата тут нет: он громоздкий, а нам нужен только
+    текст для определения типа и реквизитов. Поток WordDocument хранит
+    символы либо как UTF-16, либо как однобайтовую кириллицу, поэтому
+    пробуем оба варианта и берём тот, где кириллицы больше.
+    """
+    import olefile
+
+    with olefile.OleFileIO(str(path)) as ole:
+        if not ole.exists("WordDocument"):
+            return ""
+        raw = ole.openstream("WordDocument").read()
+
+    best = ""
+    for encoding in ("utf-16-le", "cp1251"):
+        decoded = raw.decode(encoding, errors="ignore")
+        # Форматирование внутри потока даёт мусор между словами: оставляем
+        # только осмысленные последовательности букв, цифр и знаков.
+        parts = re.findall(r"[А-Яа-яЁёA-Za-z0-9][^\x00-\x08\x0b\x0c\x0e-\x1f]{6,}", decoded)
+        candidate = "\n".join(part.strip() for part in parts)
+        if _cyrillic(candidate) > _cyrillic(best):
+            best = candidate
+    return best
+
+
+def _cyrillic(text: str) -> int:
+    return sum(1 for char in text if "а" <= char.lower() <= "я")
+
+
 def _from_text(path: Path) -> str:
     for encoding in ("utf-8", "cp1251"):
         try:
@@ -62,6 +94,8 @@ def extract_text(path: Path, filename: str = "") -> str:
     try:
         if suffix == ".pdf":
             text = _from_pdf(path)
+        elif suffix == ".doc":
+            text = _from_doc(path)
         elif suffix in (".docx", ".dotx"):
             text = _from_docx(path)
         elif suffix in (".txt", ".rtf", ".csv"):

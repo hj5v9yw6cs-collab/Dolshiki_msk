@@ -135,7 +135,7 @@ def list_documents(
 
 
 @router.post("/cases/{case_id}/documents", status_code=201, summary="Загрузить документ")
-async def upload_document(
+def upload_document(
     case_id: str,
     request: Request,
     file: UploadFile = File(...),
@@ -144,6 +144,11 @@ async def upload_document(
     actor: Actor = Depends(current_actor),
     session: DbSession = Depends(get_session),
 ) -> dict:
+    # Обработчик намеренно синхронный. Внутри всё блокирующее: чтение файла
+    # с диска и разбор PDF, который на скане занимает секунды. В async-виде
+    # это выполнялось бы прямо в цикле событий и на время загрузки вешало
+    # весь кабинет — список дел, заявки, соседние вкладки. Синхронный
+    # обработчик FastAPI уводит в пул потоков, и остальное продолжает жить.
     case = _get_case(session, case_id)
     original_name = file.filename or "file"
 

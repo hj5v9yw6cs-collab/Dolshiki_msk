@@ -450,6 +450,10 @@
           return '<option value="' + esc(option.value) + '"' +
             (option.value === doc.doc_type ? " selected" : "") + ">" + esc(option.title) + "</option>";
         }).join("") + "</select>" +
+        (previewable(doc.stored_name)
+          ? '<button type="button" class="btn btn--outline btn--sm" data-preview="' +
+            esc(doc.id) + '">Смотреть</button>'
+          : "") +
         '<a class="btn btn--outline btn--sm" href="/api/v1/documents/' + esc(doc.id) +
         '/file" data-download="' + esc(doc.id) + '">Скачать</a>' +
         '<button type="button" class="btn btn--quiet btn--sm" data-delete="' + esc(doc.id) +
@@ -500,11 +504,63 @@
     });
 
     // Скачивание идёт с токеном, поэтому обычная ссылка не подходит.
+    all("[data-preview]").forEach(function (button) {
+      on(button, "click", function () { previewDocument(button.dataset.preview); });
+    });
+
     all("[data-download]").forEach(function (link) {
       on(link, "click", function (event) {
         event.preventDefault();
         downloadDocument(link.dataset.download);
       });
+    });
+  }
+
+  // Открывается то, что браузер умеет показать сам. Word и Excel он не
+  // показывает, поэтому для них кнопки просмотра нет — только скачивание.
+  var PREVIEWABLE = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+  function previewable(name) {
+    var lower = String(name || "").toLowerCase();
+    return PREVIEWABLE.some(function (suffix) { return lower.slice(-suffix.length) === suffix; });
+  }
+
+  function previewDocument(documentId) {
+    var box = document.createElement("div");
+    box.className = "modal";
+    box.innerHTML =
+      '<div class="modal__box modal__box--wide">' +
+      '<h2 class="modal__title" id="preview-title">Документ</h2>' +
+      '<div class="preview" id="preview-body">Загружаем…</div>' +
+      '<div class="modal__actions">' +
+      '<button type="button" class="btn btn--outline" data-close>Закрыть</button>' +
+      "</div></div>";
+    $("modal-root").appendChild(box);
+
+    var url = null;
+    var close = function () {
+      // Ссылку на blob нужно отпустить руками, иначе файл клиента висит
+      // в памяти вкладки до перезагрузки страницы.
+      if (url) URL.revokeObjectURL(url);
+      box.remove();
+    };
+    on(box.querySelector("[data-close]"), "click", close);
+    on(box, "click", function (event) { if (event.target === box) close(); });
+
+    fetch("/api/v1/documents/" + documentId + "/file", {
+      headers: { Authorization: "Bearer " + token() }
+    }).then(function (response) {
+      if (!response.ok) throw new Error("Файл недоступен");
+      return response.blob();
+    }).then(function (blob) {
+      url = URL.createObjectURL(blob);
+      var body = box.querySelector("#preview-body");
+      body.innerHTML = blob.type.indexOf("image/") === 0
+        ? '<img src="' + url + '" alt="">'
+        : '<iframe src="' + url + '" title="Документ"></iframe>';
+    }).catch(function (error) {
+      box.querySelector("#preview-body").innerHTML =
+        '<div class="note-box note-box--error">' + esc(error.message) + "</div>";
     });
   }
 

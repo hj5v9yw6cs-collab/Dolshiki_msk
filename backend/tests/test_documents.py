@@ -533,3 +533,51 @@ def test_upload_leaves_no_temporary_files(api_client, staff, case):
     upload(api_client, staff, case, name="дду.pdf", content=DDU_BYTES)
 
     assert list(_incoming_dir().iterdir()) == []
+
+
+def test_lawsuit_is_not_mistaken_for_the_contract_it_quotes():
+    """Иск цитирует ДДУ, но заголовок у него свой — по нему и определяем."""
+    text = (
+        "ИСКОВОЕ ЗАЯВЛЕНИЕ\n"
+        "о взыскании неустойки по договору участия в долевом строительстве\n"
+        "Между истцом и ответчиком заключен договор участия в долевом строительстве "
+        "№ КЗН-1 от 10.09.2024. Застройщик обязуется передать объект. "
+        "ПРОШУ СУД взыскать неустойку."
+    )
+
+    guess = classify("скан_001.pdf", text)
+
+    assert guess.code == "lawsuit", guess.explanation
+
+
+def test_claim_is_not_mistaken_for_the_contract_it_quotes():
+    text = (
+        "ПРЕТЕНЗИЯ\n"
+        "По договору участия в долевом строительстве № КЗН-1 застройщик обязуется "
+        "передать объект долевого строительства. Требую выплатить неустойку "
+        "в добровольном порядке."
+    )
+
+    guess = classify("скан_002.pdf", text)
+
+    assert guess.code == "claim", guess.explanation
+
+
+def test_contract_still_wins_on_its_own_text():
+    text = (
+        "ДОГОВОР УЧАСТИЯ В ДОЛЕВОМ СТРОИТЕЛЬСТВЕ № КЗН-1\n"
+        "Застройщик обязуется передать участнику долевого строительства объект."
+    )
+
+    guess = classify("скан_001.pdf", text)
+
+    assert guess.code == "ddu", guess.explanation
+
+
+def test_heading_is_found_below_the_city_and_date_line():
+    """В сканах над названием часто стоят город и дата — заголовок ниже."""
+    text = "г. Казань\n10.09.2024\nДОГОВОР УЧАСТИЯ В ДОЛЕВОМ СТРОИТЕЛЬСТВЕ № КЗН-1\nЗастройщик и участник."
+
+    guess = classify("скан_003.pdf", text)
+
+    assert guess.code == "ddu", guess.explanation

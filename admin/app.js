@@ -336,7 +336,10 @@
 
     html += '<div class="card"><h2>Претензия и суд</h2><div class="grid2">' +
       field("Претензия направлена", "claim_sent_on", data.claim_sent_on, "date") +
+      field("Трек-номер претензии", "claim_track_number", data.claim_track_number) +
       field("Срок ответа", "claim_response_deadline", data.claim_response_deadline, "date") +
+      field("Иск направлен", "lawsuit_sent_on", data.lawsuit_sent_on, "date") +
+      field("Трек-номер иска", "lawsuit_track_number", data.lawsuit_track_number) +
       field("Суд", "court_name", data.court_name) +
       field("Номер дела в суде", "court_case_number", data.court_case_number) +
       field("Дата заседания", "next_hearing_on", data.next_hearing_on, "date") +

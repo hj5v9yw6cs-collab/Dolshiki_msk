@@ -531,3 +531,101 @@ def test_lawyer_cannot_delete_a_case(api_client, staff):
     assert api_client.get(
         f"/api/v1/cases/{created['id']}", headers=staff["lawyer"]
     ).status_code == 200
+
+
+def test_suit_filing_deadline_appears_two_weeks_after_the_claim_was_sent(api_client, staff):
+    """Порядок практики: две календарные недели от даты отправки претензии."""
+    from datetime import date, timedelta
+
+    created = api_client.post(
+        "/api/v1/cases",
+        json={"client_name": "Срочный Клиент", "client_phone": "+79000000004"},
+        headers=staff["manager"],
+    ).json()
+    sent = date.today() - timedelta(days=3)
+
+    api_client.patch(
+        f"/api/v1/cases/{created['id']}",
+        json={
+            "claim_sent_on": sent.isoformat(),
+            # Срок ответа отодвигаем, чтобы проверять именно подачу иска:
+            # иначе ближайшим окажется он, и это правильно.
+            "claim_response_deadline": (date.today() + timedelta(days=60)).isoformat(),
+        },
+        headers=staff["manager"],
+    )
+
+    fresh = api_client.get(f"/api/v1/cases/{created['id']}", headers=staff["manager"]).json()
+    assert fresh["deadline"]["kind"] == "suit_filing"
+    assert fresh["deadline"]["due_on"] == (sent + timedelta(days=14)).isoformat()
+
+
+def test_the_filing_deadline_goes_away_once_the_suit_is_filed(api_client, staff):
+    """Срок исполнен — напоминать о нём больше не о чем."""
+    from datetime import date, timedelta
+
+    created = api_client.post(
+        "/api/v1/cases",
+        json={"client_name": "Поданный Иск", "client_phone": "+79000000005"},
+        headers=staff["manager"],
+    ).json()
+    api_client.patch(
+        f"/api/v1/cases/{created['id']}",
+        json={"claim_sent_on": (date.today() - timedelta(days=20)).isoformat(),
+              "claim_response_deadline": (date.today() + timedelta(days=60)).isoformat(),
+              "court_case_number": "2-1234/2026"},
+        headers=staff["manager"],
+    )
+
+    fresh = api_client.get(f"/api/v1/cases/{created['id']}", headers=staff["manager"]).json()
+    assert fresh["deadline"]["kind"] != "suit_filing"
+
+
+# --- утренняя сводка -------------------------------------------------------
+
+
+def test_digest_lists_overdue_before_the_upcoming(api_client, staff):
+    from datetime import date, timedelta
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from daily_digest import build_digest
+
+    from app.db import SessionLocal
+    from app.models import Case
+    from sqlalchemy import select
+
+    today = date.today()
+    for name, sent in (("Просроченный", today - timedelta(days=40)), ("Скорый", today - timedelta(days=10))):
+        created = api_client.post(
+            "/api/v1/cases", json={"client_name": name, "client_phone": "+79000000006"},
+            headers=staff["manager"],
+        ).json()
+        api_client.patch(
+            f"/api/v1/cases/{created['id']}",
+            json={"claim_sent_on": sent.isoformat(),
+                  "claim_response_deadline": (today + timedelta(days=90)).isoformat()},
+            headers=staff["manager"],
+        )
+
+    session = SessionLocal()
+    try:
+        text = build_digest(session.scalars(select(Case)).all(), 0, today)
+    finally:
+        session.close()
+
+    assert "Просрочено" in text
+    assert text.index("Просрочено") < text.index("На неделе")
+
+
+def test_quiet_day_sends_nothing():
+    """Молчание должно означать «всё спокойно», иначе сводку перестают читать."""
+    from datetime import date
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from daily_digest import build_digest
+
+    assert build_digest([], 0, date.today()) == ""

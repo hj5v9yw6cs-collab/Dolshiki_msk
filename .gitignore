@@ -9,3 +9,4 @@ config/cbr-sync-state.json
 demo/dist/
 site/dist/
 backend/.env
+.env.offsite

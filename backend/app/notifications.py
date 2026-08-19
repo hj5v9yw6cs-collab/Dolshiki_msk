@@ -45,17 +45,22 @@ def build_message(lead) -> str:
     return "\n".join(lines)
 
 
-def notify_new_lead(lead) -> bool:
+def send_message(text: str) -> bool:
+    """Отправляет сообщение в чат практики. Разметка — HTML Telegram.
+
+    Ошибку не пробрасывает: и заявка, и сводка важнее самого уведомления,
+    и падать из-за недоступности мессенджера им незачем.
+    """
     token = env("TELEGRAM_BOT_TOKEN")
     chat_id = env("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
-        logger.info("Telegram не настроен — уведомление о заявке %s пропущено.", lead.id)
+        logger.info("Telegram не настроен — сообщение пропущено.")
         return False
 
     try:
         response = httpx.post(
             TELEGRAM_API.format(token=token),
-            json={"chat_id": chat_id, "text": build_message(lead), "parse_mode": "HTML"},
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             timeout=10.0,
         )
         if response.status_code != 200:
@@ -63,6 +68,9 @@ def notify_new_lead(lead) -> bool:
             return False
         return True
     except httpx.HTTPError as exc:
-        # Заявка уже в базе — падать из-за уведомления нельзя.
-        logger.warning("Не удалось отправить уведомление в Telegram: %s", exc)
+        logger.warning("Не удалось отправить сообщение в Telegram: %s", exc)
         return False
+
+
+def notify_new_lead(lead) -> bool:
+    return send_message(build_message(lead))

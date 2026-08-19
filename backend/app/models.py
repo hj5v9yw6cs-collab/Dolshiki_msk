@@ -192,6 +192,11 @@ class Case(Base):
 
     claim_sent_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     claim_response_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Почтовые идентификаторы: по ним заказывается отчёт об отслеживании,
+    # который подшивается к иску.
+    claim_track_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    lawsuit_sent_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    lawsuit_track_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     court_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
     court_case_number: Mapped[str | None] = mapped_column(String(100), nullable=True)

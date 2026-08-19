@@ -8,3 +8,15 @@
 
 # То же плюс файлы дел — раз в неделю ночью с субботы на воскресенье, 4 копии.
 0 4 * * 0  /opt/dolshiki/deploy/backup.sh full >> /var/log/dolshiki-backup.log 2>&1
+
+# Утренняя сводка по делам в Telegram: что просрочено и что горит на неделе.
+# Только по будням — в выходные читать её некому.
+0 6 * * 1-5  cd /opt/dolshiki/deploy && docker compose exec -T app python scripts/daily_digest.py >> /var/log/dolshiki-digest.log 2>&1
+
+# Проверка, что система отвечает. Сообщение приходит один раз на падение,
+# а не каждые пять минут. Заодно предупреждение о кончающемся диске.
+*/5 * * * *  /opt/dolshiki/deploy/healthcheck.sh >> /var/log/dolshiki-health.log 2>&1
+
+# Копия за пределы сервера, в шифрованном виде. Работает после настройки
+# .env.offsite — см. комментарий в начале offsite-backup.sh.
+30 4 * * 0  /opt/dolshiki/deploy/offsite-backup.sh >> /var/log/dolshiki-backup.log 2>&1

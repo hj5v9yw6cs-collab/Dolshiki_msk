@@ -163,6 +163,9 @@ class CaseUpdate(BaseModel):
 
     claim_sent_on: Optional[date] = None
     claim_response_deadline: Optional[date] = None
+    claim_track_number: Optional[str] = Field(default=None, max_length=40)
+    lawsuit_sent_on: Optional[date] = None
+    lawsuit_track_number: Optional[str] = Field(default=None, max_length=40)
 
     court_name: Optional[str] = Field(default=None, max_length=300)
     court_case_number: Optional[str] = Field(default=None, max_length=100)

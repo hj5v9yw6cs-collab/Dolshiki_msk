@@ -94,6 +94,10 @@ class Deadline:
         return 0 <= self.days_left <= 3
 
 
+# Две календарные недели от даты отправки претензии — правило практики.
+CLAIM_WAIT_DAYS = 14
+
+
 def next_deadline(case, today: Optional[date] = None) -> Optional[Deadline]:
     """Ближайший неистёкший срок, а если все просрочены — самый ранний."""
     today = today or date.today()
@@ -109,6 +113,14 @@ def next_deadline(case, today: Optional[date] = None) -> Optional[Deadline]:
         add("claim_response", "Ответ на претензию", case.claim_response_deadline)
         add("hearing", "Судебное заседание", case.next_hearing_on)
         add("appeal", "Срок обжалования", case.appeal_deadline)
+
+        # Порядок практики: иск подаётся через две календарные недели от
+        # даты отправки претензии. Пока это правило держалось в голове —
+        # теперь дата появляется в списке сроков сама, как только проставлена
+        # отправка. После подачи иска срок снимается: он уже исполнен.
+        if case.claim_sent_on and not case.court_case_number:
+            add("suit_filing", "Подать иск",
+                case.claim_sent_on + timedelta(days=CLAIM_WAIT_DAYS))
 
     if not candidates:
         return None

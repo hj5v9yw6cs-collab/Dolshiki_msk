@@ -69,6 +69,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def revalidate_static(request, call_next):
+    """Статика калькулятора и кабинета всегда сверяется с сервером.
+
+    Файлы отдаёт StaticFiles, а он не ставит Cache-Control: браузер решает
+    сам и после обновления может ещё сутки показывать старый calculator.css.
+    no-cache не запрещает кэш — он требует спросить сервер, а тот отвечает
+    304, если файл не менялся.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith(("/widget/", "/app/")):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 app.include_router(auth.router)
 app.include_router(calc.router)
 app.include_router(leads.router)

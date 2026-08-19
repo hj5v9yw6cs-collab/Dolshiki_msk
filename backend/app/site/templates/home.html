@@ -43,7 +43,7 @@
     <h2 class="section__title">Калькулятор по 214-ФЗ</h2>
     <p class="section__lead">Считает неустойку за просрочку и стоимость недостатков. Показывает, из чего сложилась сумма, и какие периоды выпали из расчёта.</p>
     <div class="calc-embed">
-      <iframe src="/widget/index.html?embed=1&amp;policy=/soglasie" title="Калькулятор по 214-ФЗ" loading="lazy" scrolling="no" id="calc-frame"></iframe>
+      <iframe src="/widget/index.html?embed=1&amp;v={{ asset_version }}&amp;policy=/soglasie" title="Калькулятор по 214-ФЗ" loading="lazy" scrolling="no" id="calc-frame"></iframe>
     </div>
   </div>
 </section>
@@ -59,6 +59,23 @@
     </ol>
   </div>
 </section>
+
+{% if page.filing %}
+<section class="section">
+  <div class="wrap">
+    <h2 class="section__title">{{ page.filing.title }}</h2>
+    <p class="section__lead">{{ page.filing.lead }}</p>
+    <ol class="filing">
+      {% for item in page.filing['items'] %}
+        <li><span class="filing__num">{{ loop.index }}</span>
+          <span class="filing__title">{{ item.title }}</span>
+          <span class="filing__by">{{ item.by }}</span></li>
+      {% endfor %}
+    </ol>
+    {% if page.filing.note %}<p class="filing__note">{{ page.filing.note }}</p>{% endif %}
+  </div>
+</section>
+{% endif %}
 
 <section class="section">
   <div class="wrap">

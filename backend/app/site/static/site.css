@@ -112,6 +112,7 @@ img { max-width: 100%; }
   text-decoration: none; line-height: 1.2; white-space: nowrap;
 }
 .logo span { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-3); letter-spacing: 0; }
+.logo--foot span { margin-top: 2px; }
 .logo--foot { font-size: 16px; margin-bottom: 8px; }
 
 .site-nav {
@@ -250,6 +251,21 @@ h1 {
 }
 .steps b { font-size: 16px; font-weight: 620; }
 .steps p { margin: 3px 0 0; color: var(--text-2); font-size: 15px; }
+
+/* --- комплект для суда ----------------------------------------------------- */
+
+.filing { list-style: none; margin: 0; padding: 0; display: grid; max-width: 720px; }
+.filing li {
+  display: grid; grid-template-columns: 30px 1fr auto; align-items: baseline; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.filing li:first-child { border-top: 1px solid var(--border); }
+.filing__num { color: var(--text-3); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.filing__title { font-weight: 500; }
+.filing__by {
+  font-size: 12.5px; color: var(--text-3); white-space: nowrap;
+}
+.filing__note { margin: 22px 0 0; color: var(--text-2); max-width: 70ch; font-size: 15px; }
 
 .faq { display: grid; gap: 0; max-width: 860px; }
 .faq details { border-bottom: 1px solid var(--border); }

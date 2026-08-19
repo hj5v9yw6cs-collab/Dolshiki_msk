@@ -15,7 +15,7 @@
 <meta property="og:url" content="{{ canonical }}">
 <meta name="twitter:card" content="summary">
 
-<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/site.css?v={{ asset_version }}">
 <script>
   try {
     var savedTheme = localStorage.getItem("calc-theme");
@@ -32,9 +32,7 @@
 
 <header class="site-head">
   <div class="wrap site-head__inner">
-    <a class="logo" href="/">
-      {{ content.company.name }}<span>{{ content.company.cities_short | default(content.company.cities) }}</span>
-    </a>
+    <a class="logo" href="/">{{ content.company.name }}</a>
     <nav class="site-nav" aria-label="Разделы сайта">
       {% for item in content.nav %}
         <a href="/{{ item.slug }}"{% if current == item.slug %} aria-current="page"{% endif %}>{{ item.short }}</a>
@@ -93,6 +91,6 @@
   </div>
 </footer>
 
-<script src="/site.js"></script>
+<script src="/site.js?v={{ asset_version }}"></script>
 </body>
 </html>

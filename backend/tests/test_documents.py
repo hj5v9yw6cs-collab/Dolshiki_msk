@@ -235,21 +235,21 @@ def test_checklist_counts_what_is_missing():
     checklist = build_checklist("claim", ["ddu"])
 
     assert checklist["ready"] is False
-    assert checklist["missing_required"] == 2
+    assert checklist["missing_required"] == 3
     titles = {item["title"]: item["present"] for item in checklist["items"]}
     assert titles["Договор долевого участия"] is True
     assert titles["Паспорт"] is False
 
 
 def test_checklist_is_ready_when_everything_required_is_there():
-    checklist = build_checklist("claim", ["ddu", "payment", "passport"])
+    checklist = build_checklist("claim", ["services_contract", "ddu", "payment", "passport"])
 
     assert checklist["ready"] is True
     assert checklist["missing_required"] == 0
 
 
 def test_optional_documents_do_not_block():
-    checklist = build_checklist("claim", ["ddu", "payment", "passport"])
+    checklist = build_checklist("claim", ["services_contract", "ddu", "payment", "passport"])
     optional = [item for item in checklist["items"] if item["optional"]]
 
     assert optional, "необязательные пункты должны быть в списке"

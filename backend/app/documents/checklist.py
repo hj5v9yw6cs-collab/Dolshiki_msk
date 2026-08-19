@@ -22,18 +22,27 @@ class Requirement:
 
 BY_STAGE: Dict[str, List[Requirement]] = {
     "claim": [
+        Requirement("services_contract", "Без него мы не начинаем работу"),
         Requirement("ddu", "Основание требований"),
         Requirement("payment", "Подтверждение оплаты по договору"),
         Requirement("passport", "Данные для претензии и доверенности"),
         Requirement("act", "Подтверждает дату передачи", optional=True),
         Requirement("expert_report", "Для требований по недостаткам", optional=True),
     ],
+    # Порядок — тот, в котором комплект подшивается для подачи. Список
+    # обязательных совпадает с описанным на сайте, чтобы клиент и юрист
+    # видели одно и то же.
     "suit_filed": [
-        Requirement("ddu", "Основание требований"),
-        Requirement("payment", "Подтверждение оплаты по договору"),
+        Requirement("lawsuit", "Само требование к застройщику"),
+        Requirement("lawsuit_tracking", "Доказательство направления иска ответчику"),
         Requirement("passport", "Данные истца"),
+        Requirement("ddu", "Основание требований"),
         Requirement("claim", "Досудебный порядок"),
-        Requirement("power_of_attorney", "Полномочия представителя"),
+        Requirement("claim_tracking", "Доказательство направления претензии"),
+        Requirement("services_contract", "Основание судебных расходов"),
+        Requirement("fee_receipt", "Размер судебных расходов"),
+        Requirement("payment", "Подтверждение оплаты по ДДУ", optional=True),
+        Requirement("power_of_attorney", "Если дело ведёт представитель", optional=True),
         Requirement("developer_reply", "Если ответ был", optional=True),
         Requirement("act", "Подтверждает дату передачи", optional=True),
         Requirement("expert_report", "Для требований по недостаткам", optional=True),

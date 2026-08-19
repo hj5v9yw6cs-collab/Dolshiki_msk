@@ -23,6 +23,27 @@ from .content import Content, ContentError, store
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 STATIC = Path(__file__).parent / "static"
 
+
+def asset_version() -> str:
+    """Метка версии стилей и скрипта.
+
+    Без неё браузер после обновления сайта берёт старый site.css из кэша:
+    разметка новая, оформление прежнее — и правки выглядят несделанными.
+    Метка меняется вместе с файлами, поэтому кэш сбрасывается ровно тогда,
+    когда есть что сбрасывать.
+    """
+    stamps = [0]
+    files = [STATIC / "site.css", STATIC / "site.js"]
+    # Калькулятор во врезке живёт в отдельной папке и кэшируется так же.
+    widget = Path(__file__).resolve().parents[3] / "widget"
+    files += [widget / "calculator.css", widget / "calculator.js", widget / "index.html"]
+    for path in files:
+        try:
+            stamps.append(int(path.stat().st_mtime))
+        except OSError:
+            pass
+    return str(max(stamps))
+
 router = APIRouter(tags=["Сайт"], include_in_schema=False)
 
 
@@ -117,6 +138,7 @@ def render(
             "current": current,
             "breadcrumbs": crumbs,
             "schema": build_schema(data, origin, faq=page.get("faq"), crumbs=crumbs),
+            "asset_version": asset_version(),
             **extra,
         },
     )
@@ -226,12 +248,18 @@ def sitemap(data: Content = Depends(content)) -> Response:
 
 @router.get("/site.css")
 def site_css() -> FileResponse:
-    return FileResponse(STATIC / "site.css", media_type="text/css")
+    return FileResponse(
+        STATIC / "site.css", media_type="text/css",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/site.js")
 def site_js() -> FileResponse:
-    return FileResponse(STATIC / "site.js", media_type="application/javascript")
+    return FileResponse(
+        STATIC / "site.js", media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/{slug}", response_class=HTMLResponse)

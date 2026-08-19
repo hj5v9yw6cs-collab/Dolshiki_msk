@@ -113,7 +113,7 @@ def test_legal_pages_name_the_operator(api_client):
         page = html(api_client, path)
         assert "Оператор персональных данных" in page, f"{path}: не назван оператор"
         assert "ИНН 120101147767" in page, f"{path}: нет ИНН оператора"
-        assert "Танковая" in page, f"{path}: нет адреса для обращений"
+        assert "Фучика" in page, f"{path}: нет адреса для обращений"
         assert "0000000000" not in page, f"{path}: остался ИНН-заглушка"
 
 

@@ -726,3 +726,10 @@ def test_claim_states_the_contract_date_in_its_own_way():
     assert data["contract_date"] == "2025-05-24"
     assert data["apartment"] == "54"
     assert data["area"] == "74.43"
+
+
+def test_developer_name_survives_a_line_break_inside_the_quotes():
+    """PDF рвёт длинное наименование по строкам — склеиваем обратно."""
+    data = extract_requisites(DEVELOPER_STYLE_DDU, "ddu").as_dict()
+
+    assert data["developer_name"] == 'ООО «СПЕЦИАЛИЗИРОВАННЫЙ ЗАСТРОЙЩИК «СР-ГРУПП»»'

@@ -345,9 +345,14 @@
 
     html += '<div class="card"><h2>Деньги</h2><div class="grid2">' +
       field("Заявлено, ₽", "amount_claimed", data.amount_claimed) +
+      field("Моральный вред, ₽", "moral_damage", data.moral_damage) +
+      field("Госпошлина, ₽", "duty", data.duty) +
       field("Присуждено, ₽", "amount_awarded", data.amount_awarded) +
       field("Получено, ₽", "amount_received", data.amount_received) +
       (money ? field("Гонорар, ₽", "fee", data.fee) : "") +
+      '<div class="wide"><button type="button" class="btn btn--outline btn--sm" ' +
+      'id="recalc">Пересчитать неустойку по договору</button>' +
+      '<span class="muted-line" id="recalc-note"></span></div>' +
       "</div></div>";
 
     html += "</div><div>";
@@ -359,6 +364,19 @@
         meta.services.map(function (s) { return { value: s.code, title: s.title }; })) +
       '<div class="wide">' + field("Комментарий", "comment", data.comment, "textarea") + "</div>" +
       "</div></div>";
+
+    html += '<div class="card"><h2>Собрать документ</h2>' +
+      '<div class="generate">' +
+      '<select id="template-code">' +
+      (state.templates || []).map(function (item) {
+        return '<option value="' + esc(item.code) + '">' + esc(item.title) + "</option>";
+      }).join("") +
+      "</select>" +
+      '<button type="button" class="btn btn--solid btn--sm" id="generate">Собрать</button>' +
+      "</div>" +
+      '<div class="check__why">Готовый .docx ляжет в дело. Незаполненные поля ' +
+      "останутся подчёркиваниями — их список покажем после сборки.</div>" +
+      '<div id="generate-status"></div></div>';
 
     html += '<div class="card"><h2>Документы</h2>' +
       '<label class="drop" id="drop">' +
@@ -394,6 +412,43 @@
 
     on($("case-back"), "click", function () { loadCases(); });
     on($("delete-case"), "click", function () { deleteCaseModal(data); });
+
+    on($("recalc"), "click", function () {
+      $("recalc-note").textContent = "Считаем…";
+      api("/api/v1/cases/" + data.id + "/calculate", { method: "POST" })
+        .then(function (body) {
+          toast("ok", "Неустойка: " + body.result.total_display + " ₽");
+          openCase(data.id);
+        })
+        .catch(function (error) { $("recalc-note").textContent = error.message; });
+    });
+
+    on($("generate"), "click", function () {
+      var code = $("template-code").value;
+      var status = $("generate-status");
+      status.innerHTML = '<div class="note-box">Собираем…</div>';
+
+      var form = new FormData();
+      form.append("template", code);
+      fetch("/api/v1/cases/" + data.id + "/generate", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token() },
+        body: form
+      }).then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.detail || "Не удалось собрать документ");
+          return body;
+        });
+      }).then(function (body) {
+        status.innerHTML = body.missing && body.missing.length
+          ? '<div class="note-box note-box--error">Собрано, но не заполнено: ' +
+            esc(body.missing.map(fieldTitle).join(", ")) + "</div>"
+          : '<div class="note-box">Готово: ' + esc(body.stored_name) + "</div>";
+        loadDocuments(data.id);
+      }).catch(function (error) {
+        status.innerHTML = '<div class="note-box note-box--error">' + esc(error.message) + "</div>";
+      });
+    });
 
     on($("case-stage"), "change", function () {
       api("/api/v1/cases/" + data.id + "/stage", { method: "POST", body: { stage: this.value } })
@@ -753,6 +808,22 @@
     box.querySelector("[data-field]").focus();
   }
 
+  var FIELD_TITLES = {
+    court_name: "суд", contract_number: "номер ДДУ", contract_date: "дата ДДУ",
+    contract_price: "цена ДДУ", contract_price_words: "цена ДДУ",
+    due_date_words: "срок передачи", client_name: "ФИО клиента",
+    client_passport: "паспорт", client_snils: "СНИЛС", client_inn: "ИНН клиента",
+    client_address: "адрес клиента", client_birth_date: "дата рождения",
+    developer_name: "застройщик", developer_inn: "ИНН застройщика",
+    developer_ogrn: "ОГРН застройщика", developer_address: "адрес застройщика",
+    object_address: "адрес объекта", apartment: "квартира", area: "площадь",
+    calculation_text: "расчёт неустойки", total: "сумма неустойки",
+    total_words: "сумма неустойки", moral_damage: "моральный вред",
+    duty: "госпошлина", claim_sent_words: "дата отправки претензии"
+  };
+
+  function fieldTitle(code) { return FIELD_TITLES[code] || code; }
+
   // --- удаление дела ---------------------------------------------------------
 
   function deleteCaseModal(data) {
@@ -873,10 +944,13 @@
       state.user = user;
       $("who-name").textContent = user.name;
       $("who-role").textContent = user.role_title;
-      return Promise.all([api("/api/v1/meta"), api("/api/v1/documents/meta")]);
+      return Promise.all([
+        api("/api/v1/meta"), api("/api/v1/documents/meta"), api("/api/v1/templates")
+      ]);
     }).then(function (results) {
       var meta = results[0];
       state.docTypes = results[1].types;
+      state.templates = results[2].templates;
       state.meta = meta;
       fillFilters();
       showApp();

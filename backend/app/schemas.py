@@ -170,6 +170,8 @@ class CaseUpdate(BaseModel):
     appeal_deadline: Optional[date] = None
 
     amount_claimed: Optional[Decimal] = Field(default=None, ge=0)
+    moral_damage: Optional[Decimal] = Field(default=None, ge=0)
+    duty: Optional[Decimal] = Field(default=None, ge=0)
     amount_awarded: Optional[Decimal] = Field(default=None, ge=0)
     amount_received: Optional[Decimal] = Field(default=None, ge=0)
     fee: Optional[Decimal] = Field(default=None, ge=0)

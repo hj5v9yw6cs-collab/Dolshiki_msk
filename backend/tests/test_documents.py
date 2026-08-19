@@ -756,3 +756,81 @@ def test_registry_does_not_hand_excel_a_formula_from_the_lead_form(api_client, s
 
     assert not any(value.startswith("=") for value in values), "формула ушла в файл как формула"
     assert any(value.startswith("'=HYPERLINK") for value in values), "значение потерялось"
+
+
+# --- сборка документов по шаблонам -----------------------------------------
+
+
+def test_case_calculation_is_linked_and_fills_the_claimed_amount(api_client, staff, case):
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "8500000", "due_date": "2025-10-31"},
+        headers=staff["lawyer"],
+    )
+
+    response = api_client.post(f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"])
+
+    assert response.status_code == 200, response.text
+    fresh = api_client.get(f"/api/v1/cases/{case['id']}", headers=staff["lawyer"]).json()
+    assert fresh["amount_claimed"] == response.json()["result"]["total"]
+
+
+def test_generated_claim_lands_in_the_case_as_a_document(api_client, staff, case):
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "8500000", "due_date": "2025-10-31",
+              "contract_number": "ОСТ-1", "contract_date": "2024-05-24"},
+        headers=staff["lawyer"],
+    )
+    api_client.post(f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"])
+
+    response = api_client.post(
+        f"/api/v1/cases/{case['id']}/generate",
+        data={"template": "claim_delay"},
+        headers=staff["lawyer"],
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["doc_type"] == "claim"
+    assert body["stored_name"].endswith(".docx")
+
+    listed = api_client.get(f"/api/v1/cases/{case['id']}/documents", headers=staff["lawyer"]).json()
+    assert any(item["id"] == body["id"] for item in listed["items"])
+
+
+def test_missing_fields_are_named_and_left_visible(api_client, staff, case):
+    """Пустое место в готовом иске заметить труднее, чем подчёркивания."""
+    response = api_client.post(
+        f"/api/v1/cases/{case['id']}/generate",
+        data={"template": "lawsuit_delay"},
+        headers=staff["lawyer"],
+    )
+
+    assert response.status_code == 201, response.text
+    assert "court_name" in response.json()["missing"]
+    assert "contract_number" in response.json()["missing"]
+
+
+def test_generated_document_carries_the_real_numbers(api_client, staff, case):
+    from docx import Document as DocxDocument
+
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "8500000", "due_date": "2025-10-31", "contract_number": "ОСТ-1"},
+        headers=staff["lawyer"],
+    )
+    api_client.post(f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"])
+    created = api_client.post(
+        f"/api/v1/cases/{case['id']}/generate",
+        data={"template": "claim_delay"}, headers=staff["lawyer"],
+    ).json()
+
+    downloaded = api_client.get(
+        f"/api/v1/documents/{created['id']}/file", headers=staff["lawyer"]
+    )
+    text = "\n".join(p.text for p in DocxDocument(io.BytesIO(downloaded.content)).paragraphs)
+
+    assert "ОСТ-1" in text
+    assert "8 500 000,00" in text
+    assert "Восемь миллионов пятьсот тысяч рублей" in text

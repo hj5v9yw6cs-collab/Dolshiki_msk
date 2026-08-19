@@ -169,6 +169,8 @@ def case_detail(case: Case, actor: Actor, today: Optional[date] = None) -> dict:
         "court_case_number": case.court_case_number,
         "next_hearing_on": _iso(case.next_hearing_on),
         "appeal_deadline": _iso(case.appeal_deadline),
+        "moral_damage": _money(case.moral_damage),
+        "duty": _money(case.duty),
         "amount_awarded": _money(case.amount_awarded),
         "amount_received": _money(case.amount_received),
         "amount_received_display": _money_display(case.amount_received),

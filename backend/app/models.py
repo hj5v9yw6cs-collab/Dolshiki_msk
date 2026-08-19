@@ -199,6 +199,9 @@ class Case(Base):
     appeal_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     amount_claimed: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    # Просят в иске отдельными требованиями, и обе суммы попадают в шаблон.
+    moral_damage: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    duty: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     amount_awarded: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     amount_received: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     fee: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import tempfile
 from datetime import date
@@ -14,7 +15,12 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
+from ..core.calculator import CalculationError, DelayInput, calculate_delay
+from ..core.legal_config import store as config_store
 from ..db import DATA_DIR, get_session
+from ..generation import TemplateError, case_values, catalog as generation_catalog
+from ..generation import render as render_template, store as store_templates
+from ..presenters import result_to_dict
 from ..documents import (
     DOC_TYPE_BY_CODE,
     FOLDERS,
@@ -34,7 +40,7 @@ from ..documents import (
     type_title,
     unique_path,
 )
-from ..models import Case, Document, DocumentAccess
+from ..models import Calculation, Case, Document, DocumentAccess
 from ..schemas import DocumentUpdate
 from .cases import find_or_create_developer, log_event
 from .deps import Actor, client_ip, current_actor
@@ -381,6 +387,134 @@ def apply_requisites(
     )
     session.commit()
     return {"ok": True, "applied": applied}
+
+
+@router.get("/templates", summary="Список шаблонов документов")
+def list_templates(_: Actor = Depends(current_actor)) -> dict:
+    return {"templates": generation_catalog()}
+
+
+@router.post("/cases/{case_id}/calculate", summary="Пересчитать неустойку по делу")
+def calculate_case(
+    case_id: str,
+    actor: Actor = Depends(current_actor),
+    session: DbSession = Depends(get_session),
+) -> dict:
+    """Считает неустойку по данным карточки и привязывает расчёт к делу.
+
+    Раньше калькулятор жил отдельно от дела: юрист считал в виджете, а в
+    карточку переносил число руками. Теперь источник один — цена, срок по
+    договору и дата фактической передачи из самого дела, — поэтому расчёт
+    в тексте документа и расчёт в приложении к иску не могут разойтись.
+    """
+    case = _get_case(session, case_id)
+
+    if case.contract_price is None or case.due_date is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Для расчёта нужны цена договора и срок передачи по договору.",
+        )
+
+    try:
+        result = calculate_delay(
+            DelayInput(
+                contract_price=case.contract_price,
+                due_date=case.due_date,
+                actual_date=case.actual_transfer_date,
+                is_individual=True,
+                moral_harm=case.moral_damage or Decimal(0),
+            ),
+            config_store.get(),
+        )
+    except CalculationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    payload = result_to_dict(result)
+    record = Calculation(
+        mode="delay",
+        inputs={
+            "contract_price": str(case.contract_price),
+            "due_date": case.due_date.isoformat(),
+            "actual_date": case.actual_transfer_date.isoformat() if case.actual_transfer_date else None,
+        },
+        result=payload,
+        total=Decimal(payload["total"]),
+        config_version=payload.get("config_version", 0),
+        source="case",
+    )
+    session.add(record)
+    session.flush()
+
+    case.calculation_id = record.id
+    case.amount_claimed = Decimal(payload["total"])
+    log_event(session, case, actor, "field",
+              f"Пересчитана неустойка: {payload['total_display']} ₽")
+    session.commit()
+
+    return {"calculation_id": record.id, "result": payload}
+
+
+@router.post("/cases/{case_id}/generate", status_code=201, summary="Собрать документ по шаблону")
+def generate_document(
+    case_id: str,
+    template: str = Form(...),
+    actor: Actor = Depends(current_actor),
+    session: DbSession = Depends(get_session),
+) -> dict:
+    """Собирает претензию или иск и кладёт готовый файл в дело.
+
+    Документ помечается черновиком не на словах: пропущенные поля видны в
+    тексте подчёркиваниями, а их список возвращается сюда — чтобы юрист
+    узнал о пробелах до отправки.
+    """
+    case = _get_case(session, case_id)
+
+    calculation = None
+    if case.calculation_id:
+        record = session.get(Calculation, case.calculation_id)
+        calculation = record.result if record else None
+
+    try:
+        values = case_values(case, calculation)
+        content, missing, title = render_template(template, values)
+    except TemplateError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    doc_type = store_templates.get().get(template, {}).get("doc_type", "other")
+    folder = type_folder(doc_type)
+    stored_name = build_filename(
+        case.number, case.client.full_name if case.client else "", doc_type, date.today(), ".docx"
+    )
+    target = unique_path(resolve_target(_case_root(case), folder, stored_name))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+
+    document = Document(
+        case_id=case.id,
+        original_name=f"{title}.docx",
+        stored_name=target.name,
+        relative_path=f"{folder}/{target.name}",
+        folder=folder,
+        doc_type=doc_type,
+        size_bytes=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        confidence=1.0,
+        needs_review=False,
+        detected_by="generated",
+        signals="собран системой по шаблону",
+        is_scan=False,
+        extracted={},
+        uploaded_by_id=actor.user_id,
+        uploaded_by_name=actor.display_name,
+    )
+    session.add(document)
+    log_event(session, case, actor, "system", f"Собран документ: {target.name}")
+    session.commit()
+    session.refresh(document)
+
+    payload = _document_payload(document)
+    payload["missing"] = missing
+    return payload
 
 
 @router.get("/documents/{document_id}/file", summary="Скачать документ")

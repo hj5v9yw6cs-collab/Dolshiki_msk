@@ -51,6 +51,20 @@ APPLICABLE = {
 }
 
 
+def _incoming_dir() -> Path:
+    """Папка для файла, который ещё не прошёл проверки.
+
+    Лежит внутри DATA_DIR, а не в /tmp, и это принципиально: готовый файл
+    переносится в папку дела через os.replace, а он работает только в
+    пределах одной файловой системы. В контейнере /tmp — слой образа, а
+    data — примонтированный том, и перенос между ними падает с
+    OSError: [Errno 18] Invalid cross-device link.
+    """
+    path = DATA_DIR / ".incoming"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def _case_root(case: Case) -> Path:
     return case_folder(DATA_DIR, case.number, case.client.full_name if case.client else "",
                        case.created_at.date())
@@ -135,7 +149,7 @@ async def upload_document(
 
     # Файл сначала уходит во временный, чтобы не мусорить в папке дела,
     # если он не пройдёт проверки.
-    with tempfile.NamedTemporaryFile(delete=False) as handle:
+    with tempfile.NamedTemporaryFile(delete=False, dir=_incoming_dir()) as handle:
         temporary = Path(handle.name)
     try:
         try:

@@ -509,3 +509,27 @@ def test_lawyer_registry_has_no_fee_column(api_client, staff, case):
 
 def test_registry_export_requires_login(api_client):
     assert api_client.get("/api/v1/cases.xlsx").status_code == 401
+
+
+def test_incoming_dir_shares_a_filesystem_with_case_folders():
+    """Временный файл обязан лежать там же, где папки дел.
+
+    Иначе перенос готового файла в дело падает: os.replace не умеет
+    переносить между файловыми системами, а в контейнере /tmp и том с
+    данными — разные. Ровно так загрузка и ломалась на сервере.
+    """
+    from app.api.documents import _incoming_dir
+    from app.db import DATA_DIR
+
+    incoming = _incoming_dir()
+
+    assert incoming.is_relative_to(Path(DATA_DIR))
+    assert incoming.stat().st_dev == Path(DATA_DIR).stat().st_dev
+
+
+def test_upload_leaves_no_temporary_files(api_client, staff, case):
+    from app.api.documents import _incoming_dir
+
+    upload(api_client, staff, case, name="дду.pdf", content=DDU_BYTES)
+
+    assert list(_incoming_dir().iterdir()) == []

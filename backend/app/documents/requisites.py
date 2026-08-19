@@ -443,7 +443,7 @@ def _developer_name(block: str) -> Optional[str]:
     name = _clean(match.group(2)) or ""
     # PDF рвёт длинное название по строкам: «СР -\nГРУПП» превращается в
     # «СР - ГРУПП». Дефис между двумя частями одного слова склеиваем обратно.
-    name = re.sub(r"(?<=[А-ЯЁA-Z])\s+-\s+(?=[А-ЯЁA-Z])", "-", name)
+    name = re.sub(r"(?<=[А-ЯЁA-Z])\s*-\s+(?=[А-ЯЁA-Z])", "-", name)
     # Внутренние прямые кавычки приводим к тем же угловым, что и внешние.
     name = name.replace('"', "«", 1).replace('"', "»")
     if name.count("«") > name.count("»"):

@@ -581,3 +581,77 @@ def test_heading_is_found_below_the_city_and_date_line():
     guess = classify("скан_003.pdf", text)
 
     assert guess.code == "ddu", guess.explanation
+
+
+# --- реквизиты из ДДУ -------------------------------------------------------
+
+FULL_DDU = """ДОГОВОР УЧАСТИЯ В ДОЛЕВОМ СТРОИТЕЛЬСТВЕ № КЗН-1(кв)-3/16 от 10.09.2024
+г. Казань
+Общество с ограниченной ответственностью «МТ-ДЕВЕЛОПМЕНТ», ОГРН 1141690077725,
+ИНН 1655310204, именуемое в дальнейшем «Застройщик», в лице директора
+Сидорова Петра Ивановича, с одной стороны, и
+гражданка РФ Седина Анна Владимировна, дата рождения 17.05.1997,
+паспорт 92 15 № 456789, выдан ОУФМС России по Республике Татарстан 20.06.2017,
+СНИЛС 123-456-789 00, ИНН 165512345678, зарегистрирована по адресу:
+г. Казань, ул. Халитова, д. 8, кв. 12, именуемая в дальнейшем
+«Участник долевого строительства», с другой стороны, заключили договор.
+1.1. Застройщик обязуется построить жилой комплекс «Статный» и передать
+Участнику долевого строительства объект долевого строительства — квартиру
+№ 353, общая проектная площадь 41,20 кв.м, расположенную по адресу:
+420088, Республика Татарстан, г. Казань, улица Халитова, д. 8.
+2.1. Цена договора составляет 8 238 699 (Восемь миллионов) рублей 43 копейки.
+3.1. Застройщик обязуется передать объект долевого строительства
+не позднее 31.10.2025.
+"""
+
+
+def test_contract_requisites_are_read_in_full():
+    data = extract_requisites(FULL_DDU, "ddu").as_dict()
+
+    assert data["contract_number"] == "КЗН-1(кв)-3/16"
+    assert data["contract_date"] == "2024-09-10"
+    assert data["contract_price"] == "8238699.43"
+    assert data["due_date"] == "2025-10-31"
+    assert data["apartment"] == "353"
+    assert data["area"] == "41.20"
+    assert data["project"] == "Статный"
+    assert data["object_address"].startswith("420088")
+
+
+def test_party_requisites_are_read_and_not_mixed_up():
+    data = extract_requisites(FULL_DDU, "ddu").as_dict()
+
+    assert data["client_name"] == "Седина Анна Владимировна"
+    assert data["client_birth_date"] == "1997-05-17"
+    assert data["client_snils"] == "123-456-789 00"
+    assert data["client_passport"].startswith("92 15 № 456789")
+    assert "выдан" in data["client_passport"]
+    assert data["client_address"] == "г. Казань, ул. Халитова, д. 8, кв. 12"
+    # ИНН физлица — двенадцать цифр, юрлица — десять; по длине их и делим.
+    assert data["client_inn"] == "165512345678"
+    assert data["developer_inn"] == "1655310204"
+    assert data["developer_ogrn"] == "1141690077725"
+    assert data["developer_name"] == "ООО «МТ-ДЕВЕЛОПМЕНТ»"
+
+
+def test_birth_date_does_not_become_the_contract_date():
+    """Паспорт участника выдан в 1997 году — датой ДДУ это быть не может."""
+    data = extract_requisites(FULL_DDU, "ddu").as_dict()
+
+    assert data["contract_date"] != "1997-05-17"
+
+
+def test_applying_fills_the_client_and_the_developer(api_client, staff, case):
+    """Данные сторон живут в своих таблицах — перенос должен доходить и туда."""
+    document = upload(api_client, staff, case, name="дду.txt",
+                      content=FULL_DDU.encode("utf-8")).json()
+
+    api_client.post(f"/api/v1/documents/{document['id']}/apply", headers=staff["lawyer"])
+
+    fresh = api_client.get(f"/api/v1/cases/{case['id']}", headers=staff["lawyer"]).json()
+    assert fresh["client_snils"] == "123-456-789 00"
+    assert fresh["client_inn"] == "165512345678"
+    assert fresh["client_birth_date"] == "1997-05-17"
+    assert fresh["developer_inn"] == "1655310204"
+    assert fresh["developer_ogrn"] == "1141690077725"
+    assert fresh["object_address"].startswith("420088")

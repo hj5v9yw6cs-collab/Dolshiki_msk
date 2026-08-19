@@ -129,6 +129,7 @@ class Developer(Base):
     # не работает с кириллицей, поэтому ключ считаем в Python.
     name_key: Mapped[str] = mapped_column(String(300), unique=True, index=True)
     inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ogrn: Mapped[str | None] = mapped_column(String(20), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -141,6 +142,15 @@ class Client(Base):
     phone: Mapped[str] = mapped_column(String(32))
     email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     region: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # Паспортные данные и номера нужны для иска: суд требует их в шапке.
+    # Заполняются из ДДУ, где они есть в реквизитах сторон.
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    passport: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    snils: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cases: Mapped[list["Case"]] = relationship(back_populates="client")
@@ -171,6 +181,8 @@ class Case(Base):
 
     project: Mapped[str | None] = mapped_column(String(300), nullable=True)  # ЖК
     apartment: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    object_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    area: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
 
     contract_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contract_date: Mapped[date | None] = mapped_column(Date, nullable=True)

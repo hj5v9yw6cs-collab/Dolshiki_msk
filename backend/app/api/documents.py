@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import tempfile
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -35,20 +36,50 @@ from ..documents import (
 )
 from ..models import Case, Document, DocumentAccess
 from ..schemas import DocumentUpdate
-from .cases import log_event
+from .cases import find_or_create_developer, log_event
 from .deps import Actor, client_ip, current_actor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["Документы"])
 
 # Реквизиты, которые можно перенести из документа в карточку дела.
+# Что из документа переносится в карточку. Три словаря, потому что данные
+# лежат в трёх таблицах: дело, клиент, застройщик.
 APPLICABLE = {
     "contract_number": "номер ДДУ",
     "contract_date": "дата ДДУ",
     "contract_price": "цена ДДУ",
     "apartment": "квартира",
+    "object_address": "адрес объекта",
+    "area": "площадь",
+    "project": "ЖК",
     "due_date": "срок передачи по договору",
 }
+
+APPLICABLE_CLIENT = {
+    "client_name": ("full_name", "ФИО клиента"),
+    "client_birth_date": ("birth_date", "дата рождения"),
+    "client_passport": ("passport", "паспорт"),
+    "client_snils": ("snils", "СНИЛС"),
+    "client_inn": ("inn", "ИНН клиента"),
+    "client_address": ("address", "адрес регистрации"),
+}
+
+APPLICABLE_DEVELOPER = {
+    "developer_inn": ("inn", "ИНН застройщика"),
+    "developer_ogrn": ("ogrn", "ОГРН застройщика"),
+}
+
+DATE_FIELDS = {"contract_date", "due_date", "client_birth_date"}
+DECIMAL_FIELDS = {"contract_price", "area"}
+
+
+def _typed(field: str, value: str):
+    if field in DATE_FIELDS:
+        return date.fromisoformat(value)
+    if field in DECIMAL_FIELDS:
+        return Decimal(value)
+    return value
 
 
 def _incoming_dir() -> Path:
@@ -307,13 +338,35 @@ def apply_requisites(
         raise HTTPException(status_code=400, detail="В документе не нашлось реквизитов.")
 
     case = document.case
-    applied = []
-    for field in APPLICABLE:  # словарь: имя поля -> как назвать его в ленте
+    applied: List[str] = []   # имена полей — для вызывающего кода
+    titles: List[str] = []    # человеческие названия — для ленты дела
+
+    def fill(target, field: str, attribute: str, title: str) -> None:
+        """Заполняет пустое поле. Заполненное вручную не перетирается."""
         value = extracted.get(field)
-        if value is None or getattr(case, field, None) not in (None, ""):
-            continue  # заполненное вручную не перетираем
-        setattr(case, field, date.fromisoformat(value) if field.endswith("_date") else value)
+        if target is None or value is None or getattr(target, attribute, None) not in (None, ""):
+            return
+        setattr(target, attribute, _typed(field, value))
         applied.append(field)
+        titles.append(title)
+
+    for field, title in APPLICABLE.items():
+        fill(case, field, field, title)
+
+    for field, (attribute, title) in APPLICABLE_CLIENT.items():
+        fill(case.client, field, attribute, title)
+
+    # Застройщика может ещё не быть: в ДДУ он назван, а в карточке пусто.
+    if case.developer is None and extracted.get("developer_name"):
+        developer = find_or_create_developer(session, extracted["developer_name"])
+        if developer is not None:
+            case.developer_id = developer.id
+            case.developer = developer
+            applied.append("developer_name")
+            titles.append("застройщик")
+
+    for field, (attribute, title) in APPLICABLE_DEVELOPER.items():
+        fill(case.developer, field, attribute, title)
 
     if not applied:
         raise HTTPException(
@@ -324,8 +377,7 @@ def apply_requisites(
     document.extracted_applied = True
     log_event(
         session, case, actor, "field",
-        "Из документа " + document.stored_name + " перенесено: "
-        + ", ".join(APPLICABLE[field] for field in applied),
+        "Из документа " + document.stored_name + " перенесено: " + ", ".join(titles),
     )
     session.commit()
     return {"ok": True, "applied": applied}

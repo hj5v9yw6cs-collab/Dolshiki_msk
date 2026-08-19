@@ -139,12 +139,21 @@ class CaseUpdate(BaseModel):
     client_phone: Optional[str] = Field(default=None, max_length=32)
     client_email: Optional[str] = Field(default=None, max_length=200)
 
+    # Паспортные данные клиента: переносятся из ДДУ, нужны в шапке иска.
+    client_birth_date: Optional[date] = None
+    client_passport: Optional[str] = Field(default=None, max_length=200)
+    client_snils: Optional[str] = Field(default=None, max_length=20)
+    client_inn: Optional[str] = Field(default=None, max_length=20)
+    client_address: Optional[str] = Field(default=None, max_length=300)
+
     service_type: Optional[str] = Field(default=None, max_length=20)
     region: Optional[str] = Field(default=None, max_length=32)
     lawyer_id: Optional[str] = Field(default=None, max_length=36)
     developer_name: Optional[str] = Field(default=None, max_length=300)
     project: Optional[str] = Field(default=None, max_length=300)
     apartment: Optional[str] = Field(default=None, max_length=100)
+    object_address: Optional[str] = Field(default=None, max_length=300)
+    area: Optional[Decimal] = Field(default=None, ge=0)
 
     contract_number: Optional[str] = Field(default=None, max_length=100)
     contract_date: Optional[date] = None

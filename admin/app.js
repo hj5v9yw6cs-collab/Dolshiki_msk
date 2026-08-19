@@ -302,18 +302,34 @@
       field("Телефон", "client_phone", data.client_phone) +
       field("Почта", "client_email", data.client_email, "email") +
       field("Регион", "region", data.region, "select", optionsFrom(meta.regions, "code", "title")) +
+      field("Дата рождения", "client_birth_date", data.client_birth_date, "date") +
+      field("СНИЛС", "client_snils", data.client_snils) +
+      field("ИНН", "client_inn", data.client_inn) +
+      field("Паспорт", "client_passport", data.client_passport) +
+      "</div>" +
+      '<div class="grid1">' +
+      field("Адрес регистрации", "client_address", data.client_address) +
       "</div></div>";
 
     html += '<div class="card"><h2>Объект и договор</h2><div class="grid2">' +
       field("ЖК", "project", data.project) +
       field("Квартира", "apartment", data.apartment) +
+      field("Площадь, м²", "area", data.area) +
       field("Застройщик", "developer_name", data.developer) +
       field("Номер ДДУ", "contract_number", data.contract_number) +
       field("Дата ДДУ", "contract_date", data.contract_date, "date") +
       field("Цена ДДУ, ₽", "contract_price", data.contract_price) +
       field("Срок передачи по договору", "due_date", data.due_date, "date") +
       field("Дата фактической передачи", "actual_transfer_date", data.actual_transfer_date, "date") +
-      "</div></div>";
+      "</div>" +
+      '<div class="grid1">' +
+      field("Адрес объекта", "object_address", data.object_address) +
+      "</div>" +
+      ((data.developer_inn || data.developer_ogrn)
+        ? '<p class="muted-line">Застройщик: ИНН ' + esc(data.developer_inn || "—") +
+          ", ОГРН " + esc(data.developer_ogrn || "—") + "</p>"
+        : "") +
+      "</div>";
 
     html += '<div class="card"><h2>Претензия и суд</h2><div class="grid2">' +
       field("Претензия направлена", "claim_sent_on", data.claim_sent_on, "date") +
@@ -640,6 +656,13 @@
     contract_date: "дата ДДУ",
     contract_price: "цена ДДУ",
     apartment: "квартира",
+    object_address: "адрес объекта",
+    area: "площадь",
+    client_birth_date: "дата рождения",
+    client_passport: "паспорт",
+    client_snils: "СНИЛС",
+    client_inn: "ИНН клиента",
+    client_address: "адрес регистрации",
     due_date: "срок передачи"
   };
 

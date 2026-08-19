@@ -146,8 +146,17 @@ def case_detail(case: Case, actor: Actor, today: Optional[date] = None) -> dict:
     data.update({
         "client_id": case.client_id,
         "client_email": case.client.email if case.client else None,
+        "client_birth_date": _iso(case.client.birth_date) if case.client else None,
+        "client_passport": case.client.passport if case.client else None,
+        "client_snils": case.client.snils if case.client else None,
+        "client_inn": case.client.inn if case.client else None,
+        "client_address": case.client.address if case.client else None,
         "apartment": case.apartment,
+        "object_address": case.object_address,
+        "area": None if case.area is None else str(case.area),
         "developer_id": case.developer_id,
+        "developer_inn": case.developer.inn if case.developer else None,
+        "developer_ogrn": case.developer.ogrn if case.developer else None,
         "contract_number": case.contract_number,
         "contract_date": _iso(case.contract_date),
         "contract_price": _money(case.contract_price),
@@ -384,10 +393,19 @@ def update_case(
 
     # Данные клиента лежат в своей таблице.
     client = case.client
-    for field, attribute in (("client_name", "full_name"), ("client_phone", "phone"), ("client_email", "email")):
+    client_fields = (
+        ("client_name", "full_name"), ("client_phone", "phone"), ("client_email", "email"),
+        ("client_birth_date", "birth_date"), ("client_passport", "passport"),
+        ("client_snils", "snils"), ("client_inn", "inn"), ("client_address", "address"),
+    )
+    for field, attribute in client_fields:
         if field in changes:
             value = changes.pop(field)
-            setattr(client, attribute, (value or "").strip() or None if attribute == "email" else value)
+            if attribute in ("full_name", "phone"):
+                setattr(client, attribute, value)
+            else:
+                # Пустая строка из формы — это «стереть», а не значение.
+                setattr(client, attribute, (value or None) if not isinstance(value, str) else (value.strip() or None))
 
     if "developer_name" in changes:
         developer = find_or_create_developer(session, changes.pop("developer_name"))

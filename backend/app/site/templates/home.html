@@ -26,7 +26,7 @@
 <section class="section section--tint" id="uslugi">
   <div class="wrap">
     <h2 class="section__title">С чем помогаем</h2>
-    <div class="cards">
+    <div class="cards cards--pair">
       {% for item in content.pages %}
         <a class="card card--link" href="/{{ item.slug }}">
           <h3>{{ item.nav_title }}</h3>
@@ -61,7 +61,7 @@
 </section>
 
 <section class="section">
-  <div class="wrap wrap--narrow">
+  <div class="wrap">
     <h2 class="section__title">Частые вопросы</h2>
     <div class="faq">
       {% for item in page.faq %}

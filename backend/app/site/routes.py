@@ -146,7 +146,7 @@ def contacts(request: Request, data: Content = Depends(content)) -> HTMLResponse
     crumbs = [{"title": "Главная", "url": "/"}, {"title": "Контакты", "url": "/kontakty"}]
     return render(
         request, "contacts.html", data=data, page=data.data["contacts"],
-        path="/kontakty", current="kontakty", crumbs=crumbs, with_form=False,
+        path="/kontakty", current="kontakty", crumbs=crumbs,
     )
 
 

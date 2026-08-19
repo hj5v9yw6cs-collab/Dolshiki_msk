@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="hero hero--slim">
-  <div class="wrap wrap--narrow">
+  <div class="wrap">
     <h1>{{ page.h1 }}</h1>
     {% if page.lead %}<p class="hero__lead">{{ page.lead }}</p>{% endif %}
   </div>
 </section>
 
 <section class="section">
-  <div class="wrap wrap--narrow">
+  <div class="wrap">
     {% block body %}{% endblock %}
   </div>
 </section>

@@ -204,14 +204,25 @@ h1 {
 /* --- секции --------------------------------------------------------------- */
 
 .section { padding: 52px 0; }
+/* Две секции подряд на одном фоне давали 104 px пустоты: нижний отступ первой
+   плюс верхний второй. Оставляем один. Полосе с заливкой отступ нужен свой —
+   у неё есть фон, и текст не должен упираться в его край. */
+.section + .section { padding-top: 0; }
+.section + .section.section--tint,
+.section--tint + .section { padding-top: 52px; }
+/* Узкий герой уже отбит снизу — второй раз отбивать не нужно. */
+.hero--slim + .section { padding-top: 10px; }
 .section--tint { background: var(--bg-tint); border-block: 1px solid var(--border); }
 .section__title {
   margin: 0 0 10px; font-size: clamp(22px, 3vw, 29px); font-weight: 620;
   letter-spacing: -.024em; text-wrap: balance;
 }
 .section__lead { margin: 0 0 28px; color: var(--text-2); max-width: 62ch; }
+.section__title:not(:first-child) { margin-top: 44px; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+/* Четыре услуги в три колонки оставляют дыру в нижнем ряду. Раскладываем 2 × 2. */
+@media (min-width: 901px) { .cards--pair { grid-template-columns: repeat(2, 1fr); } }
 .card {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: 22px; text-decoration: none;
@@ -240,7 +251,7 @@ h1 {
 .steps b { font-size: 16px; font-weight: 620; }
 .steps p { margin: 3px 0 0; color: var(--text-2); font-size: 15px; }
 
-.faq { display: grid; gap: 0; }
+.faq { display: grid; gap: 0; max-width: 860px; }
 .faq details { border-bottom: 1px solid var(--border); }
 .faq summary {
   cursor: pointer; list-style: none; padding: 17px 30px 17px 0; font-weight: 550;
@@ -319,7 +330,7 @@ h1 {
   border: 1px solid var(--accent-border);
 }
 
-.contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 34px; }
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .contact-card { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
 .contact-card__label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
 .contact-card__value { display: block; margin-top: 6px; font-size: 21px; font-weight: 620; text-decoration: none; letter-spacing: -.02em; }
@@ -327,6 +338,7 @@ h1 {
 
 /* --- правовые тексты ------------------------------------------------------ */
 
+.prose { max-width: 76ch; }
 .prose h2 { font-size: 19px; font-weight: 620; margin: 30px 0 10px; letter-spacing: -.015em; }
 .prose p, .prose li { color: var(--text-2); }
 .prose ul { padding-left: 20px; }

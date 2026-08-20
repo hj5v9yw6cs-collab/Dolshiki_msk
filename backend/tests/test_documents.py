@@ -834,3 +834,14 @@ def test_generated_document_carries_the_real_numbers(api_client, staff, case):
     assert "ОСТ-1" in text
     assert "8 500 000,00" in text
     assert "Восемь миллионов пятьсот тысяч рублей" in text
+
+
+def test_templates_can_name_the_practice_itself(api_client, staff, case):
+    """Реквизиты исполнителя нужны договору услуг и подписи представителя."""
+    from app.generation import firm_values
+
+    values = firm_values()
+
+    assert values["firm_inn"] == "120101147767"
+    assert "Фучика" in values["firm_address"]
+    assert values["firm_legal_name"].startswith("Рузайкина")

@@ -146,6 +146,30 @@ def calculation_text(result: Optional[dict]) -> str:
     return " ".join(lines)
 
 
+def firm_values() -> Dict[str, str]:
+    """Реквизиты самой практики — исполнителя и представителя.
+
+    Берутся из того же файла, что и контакты сайта: реквизиты не должны
+    жить в двух местах и расходиться. Меняются там же, где меняются
+    контакты, — в content/site.json.
+    """
+    try:
+        from .site.content import store as site_store
+
+        company = site_store.get().company
+    except Exception:  # сайт не обязан быть настроен, чтобы собрать документ
+        return {}
+
+    return {
+        "firm_name": company.get("name", ""),
+        "firm_legal_name": company.get("legal_name", ""),
+        "firm_inn": str(company.get("inn", "")),
+        "firm_address": company.get("address", ""),
+        "firm_phone": company.get("phone", ""),
+        "firm_email": company.get("email", ""),
+    }
+
+
 def case_values(case, calculation: Optional[dict] = None, today=None) -> Dict[str, str]:
     """Все подстановки для шаблона из одной карточки дела."""
     from datetime import date as date_type
@@ -203,6 +227,7 @@ def case_values(case, calculation: Optional[dict] = None, today=None) -> Dict[st
         "moral_damage": _money(case.moral_damage),
         "duty": _money(case.duty),
     }
+    values.update(firm_values())
     return values
 
 

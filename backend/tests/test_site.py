@@ -131,13 +131,14 @@ def test_contacts_page_shows_requisites(api_client):
     assert "Где работаем" in page
 
 
-def test_practice_page_says_it_is_empty(api_client):
+def test_practice_page_shows_won_cases_without_naming_the_client(api_client):
+    """Дела публикуются, доверители — нет: страница обещает именно это."""
     page = html(api_client, "/praktika")
 
-    assert "наполняется" in page
-
-
-# --- SEO -------------------------------------------------------------------
+    assert "МТ-Девелопмент" in page
+    assert "Советский районный суд" in page
+    assert "284 096,66" in page
+    assert "Насырова" not in page, "имя доверителя на публичной странице"
 
 
 def test_page_has_unique_title_and_description(api_client):

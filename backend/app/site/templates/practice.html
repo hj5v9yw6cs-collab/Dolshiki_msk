@@ -10,6 +10,11 @@
           </div>
           <h2>{{ item.title }}</h2>
           <p>{{ item.summary }}</p>
+          {% if item.breakdown %}
+            <ul class="case__breakdown">
+              {% for line in item.breakdown %}<li>{{ line }}</li>{% endfor %}
+            </ul>
+          {% endif %}
           <dl class="case__facts">
             <div><dt>Застройщик</dt><dd>{{ item.developer }}</dd></div>
             <div><dt>Суд</dt><dd>{{ item.court }}</dd></div>

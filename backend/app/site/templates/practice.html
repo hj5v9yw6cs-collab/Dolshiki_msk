@@ -1,5 +1,6 @@
 {% extends "simple.html" %}
 {% block body %}
+  {% if page.summary %}<p class="case__total">{{ page.summary }}</p>{% endif %}
   {% if page.cases %}
     <div class="practice">
       {% for item in page.cases %}
@@ -10,6 +11,7 @@
           </div>
           <h2>{{ item.title }}</h2>
           <p>{{ item.summary }}</p>
+          {% if item.ongoing %}<p class="case__ongoing">{{ item.ongoing }}</p>{% endif %}
           {% if item.breakdown %}
             <ul class="case__breakdown">
               {% for line in item.breakdown %}<li>{{ line }}</li>{% endfor %}

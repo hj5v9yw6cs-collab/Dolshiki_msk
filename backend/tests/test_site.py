@@ -137,7 +137,7 @@ def test_practice_page_shows_won_cases_without_naming_the_client(api_client):
 
     assert "МТ-Девелопмент" in page
     assert "Советский районный суд" in page
-    assert "284 096,66" in page
+    assert "466 097,66" in page
     assert "Насырова" not in page, "имя доверителя на публичной странице"
 
 

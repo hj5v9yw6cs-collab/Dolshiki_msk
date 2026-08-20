@@ -336,6 +336,13 @@ h1 {
 .case__top { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; }
 .case__sum { font-weight: 650; font-size: 19px; font-variant-numeric: tabular-nums; }
 .case h2 { margin: 0 0 8px; font-size: 18px; font-weight: 620; }
+.case__total {
+  margin: 0 0 26px; padding: 14px 18px; border-radius: var(--r-md);
+  background: var(--accent-soft); border: 1px solid var(--accent-border);
+  color: var(--text); font-weight: 500; max-width: 72ch;
+}
+.case__ongoing { margin: 10px 0 0; color: var(--accent); font-size: 15px; }
+
 .case__breakdown {
   list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px;
   font-size: 14.5px; color: var(--text-2);

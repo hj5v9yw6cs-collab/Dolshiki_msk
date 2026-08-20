@@ -694,6 +694,13 @@ def test_dates_of_the_notary_and_the_passport_are_not_the_contract_date():
     assert data["contract_price"] == "15613672.30"
 
 
+def test_the_developer_address_is_taken_from_the_preamble():
+    """Адрес ответчика — обязательный реквизит иска, и он есть в договоре."""
+    data = extract_requisites(DEVELOPER_STYLE_DDU, "ddu").as_dict()
+
+    assert data["developer_address"] == "108852, г. Москва"
+
+
 def test_escrow_bank_is_not_taken_for_the_developer():
     """В договоре названы и банк, и нотариус — застройщик тот, чья это роль."""
     data = extract_requisites(DEVELOPER_STYLE_DDU, "ddu").as_dict()
@@ -773,6 +780,67 @@ def test_case_calculation_is_linked_and_fills_the_claimed_amount(api_client, sta
     assert response.status_code == 200, response.text
     fresh = api_client.get(f"/api/v1/cases/{case['id']}", headers=staff["lawyer"]).json()
     assert fresh["amount_claimed"] == response.json()["result"]["total"]
+
+
+def test_recalculation_also_fills_the_state_duty(api_client, staff, case):
+    """Пошлину не должен считать человек: она однозначно следует из цены иска."""
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "8500000", "due_date": "2020-10-31"},
+        headers=staff["lawyer"],
+    )
+
+    body = api_client.post(
+        f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"]
+    ).json()
+
+    duty = body["result"]["duty"]
+    fresh = api_client.get(f"/api/v1/cases/{case['id']}", headers=staff["lawyer"]).json()
+    # В карточке сумма хранится с копейками, в расчёте — в полных рублях,
+    # как её и исчисляет закон. Сравниваем числа, а не их запись.
+    assert Decimal(fresh["duty"]) == Decimal(duty["amount"]) > 0
+    # Основание всегда попадает в ленту: юрист должен видеть, откуда сумма.
+    assert any("Госпошлина" in event["text"] for event in fresh["events"])
+
+
+def test_a_small_claim_leaves_the_duty_at_zero_and_says_why(api_client, staff, case):
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "1000000", "due_date": "2025-10-31"},
+        headers=staff["lawyer"],
+    )
+
+    duty = api_client.post(
+        f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"]
+    ).json()["result"]["duty"]
+
+    assert duty["exempt"] is True
+    assert duty["amount"] == "0"
+
+
+def test_the_lawsuit_header_states_the_exemption_instead_of_zero(api_client, staff, case):
+    """«Госпошлина: 0 руб.» читается как незаполненное поле, а не как льгота."""
+    from docx import Document as DocxDocument
+
+    api_client.patch(
+        f"/api/v1/cases/{case['id']}",
+        json={"contract_price": "1000000", "due_date": "2025-10-31"},
+        headers=staff["lawyer"],
+    )
+    api_client.post(f"/api/v1/cases/{case['id']}/calculate", headers=staff["lawyer"])
+    created = api_client.post(
+        f"/api/v1/cases/{case['id']}/generate",
+        data={"template": "lawsuit_delay"}, headers=staff["lawyer"],
+    ).json()
+
+    downloaded = api_client.get(
+        f"/api/v1/documents/{created['id']}/file", headers=staff["lawyer"]
+    )
+    text = "\n".join(p.text for p in DocxDocument(io.BytesIO(downloaded.content)).paragraphs)
+
+    assert "истец освобождён от уплаты" in text
+    assert "Госпошлина: 0" not in text
+    assert "duty" not in created["missing"]
 
 
 def test_generated_claim_lands_in_the_case_as_a_document(api_client, staff, case):

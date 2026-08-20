@@ -146,6 +146,42 @@ def calculation_text(result: Optional[dict]) -> str:
     return " ".join(lines)
 
 
+def duty_values(case, result: Optional[dict]) -> Dict[str, str]:
+    """Строка про госпошлину в шапке иска.
+
+    Дольщик — потребитель, и чаще всего пошлину не платит вовсе. Написать
+    в шапке «Госпошлина: 0 руб.» нельзя: это выглядит как незаполненное
+    поле, а не как льгота, и суд вправе оставить иск без движения.
+    Поэтому в шапку идёт готовая фраза, а не число.
+    """
+    from .core.duty import duty_for_claim
+
+    lines = (result or {}).get("lines") or []
+    if lines:
+        claim_value = sum(
+            (Decimal(line["amount"]) for line in lines
+             if line.get("code") in ("neustoyka", "repair_cost")),
+            Decimal(0),
+        )
+        duty = duty_for_claim(claim_value)
+        amount, exempt = duty.amount, duty.exempt
+    elif case.duty is not None:
+        # Расчёта нет, но пошлину вписали руками — доверяем ей.
+        amount, exempt = case.duty, case.duty == 0
+    else:
+        return {"duty": "", "duty_line": ""}
+
+    exempt_text = (
+        "истец освобождён от уплаты (пункт 3 статьи 17 Закона Российской "
+        "Федерации «О защите прав потребителей», подпункт 4 пункта 2 "
+        "статьи 333.36 Налогового кодекса Российской Федерации)"
+    )
+    return {
+        "duty": _money(amount) if amount else "",
+        "duty_line": exempt_text if exempt else f"{_money(amount)} руб.",
+    }
+
+
 def firm_values() -> Dict[str, str]:
     """Реквизиты самой практики — исполнителя и представителя.
 
@@ -198,8 +234,7 @@ def case_values(case, calculation: Optional[dict] = None, today=None) -> Dict[st
         "developer_name": (developer.name if developer else "") or "",
         "developer_inn": (developer.inn if developer else "") or "",
         "developer_ogrn": (developer.ogrn if developer else "") or "",
-        # Адреса застройщика в карточке пока нет — поле заполняется руками.
-        "developer_address": "",
+        "developer_address": (developer.address if developer else "") or "",
 
         "contract_number": case.contract_number or "",
         "contract_date": case.contract_date.strftime("%d.%m.%Y") if case.contract_date else "",
@@ -222,11 +257,11 @@ def case_values(case, calculation: Optional[dict] = None, today=None) -> Dict[st
         "total": _money(total_decimal),
         "total_words": money_to_words(total_decimal) if total_decimal is not None else "",
 
-        # Размер зависит от обстоятельств дела, поэтому обе суммы — поля
-        # карточки, а не расчёт: юрист вписывает их сам.
+        # Размер морального вреда зависит от обстоятельств дела, поэтому
+        # это поле карточки, а не расчёт: юрист вписывает сумму сам.
         "moral_damage": _money(case.moral_damage),
-        "duty": _money(case.duty),
     }
+    values.update(duty_values(case, result))
     values.update(firm_values())
     return values
 

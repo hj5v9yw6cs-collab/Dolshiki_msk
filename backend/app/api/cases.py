@@ -157,6 +157,7 @@ def case_detail(case: Case, actor: Actor, today: Optional[date] = None) -> dict:
         "developer_id": case.developer_id,
         "developer_inn": case.developer.inn if case.developer else None,
         "developer_ogrn": case.developer.ogrn if case.developer else None,
+        "developer_address": case.developer.address if case.developer else None,
         "contract_number": case.contract_number,
         "contract_date": _iso(case.contract_date),
         "contract_price": _money(case.contract_price),

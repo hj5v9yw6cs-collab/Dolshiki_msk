@@ -130,6 +130,9 @@ class Developer(Base):
     name_key: Mapped[str] = mapped_column(String(300), unique=True, index=True)
     inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ogrn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Адрес нужен в шапке претензии и иска: письмо застройщику уходит по
+    # нему, и суд по нему же определяет подсудность.
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

@@ -328,9 +328,11 @@
       '<div class="grid1">' +
       field("Адрес объекта", "object_address", data.object_address) +
       "</div>" +
-      ((data.developer_inn || data.developer_ogrn)
+      ((data.developer_inn || data.developer_ogrn || data.developer_address)
         ? '<p class="muted-line">Застройщик: ИНН ' + esc(data.developer_inn || "—") +
-          ", ОГРН " + esc(data.developer_ogrn || "—") + "</p>"
+          ", ОГРН " + esc(data.developer_ogrn || "—") +
+          (data.developer_address ? "<br>Адрес: " + esc(data.developer_address) : "") +
+          "</p>"
         : "") +
       "</div>";
 
@@ -356,6 +358,8 @@
       '<div class="wide"><button type="button" class="btn btn--outline btn--sm" ' +
       'id="recalc">Пересчитать неустойку по договору</button>' +
       '<span class="muted-line" id="recalc-note"></span></div>' +
+      '<p class="wide muted-line">Госпошлину считать не нужно: пересчёт неустойки ' +
+      'заполняет её сам по цене иска и льготе потребителя. Основание — в ленте дела.</p>' +
       "</div></div>";
 
     html += "</div><div>";
@@ -420,7 +424,11 @@
       $("recalc-note").textContent = "Считаем…";
       api("/api/v1/cases/" + data.id + "/calculate", { method: "POST" })
         .then(function (body) {
-          toast("ok", "Неустойка: " + body.result.total_display + " ₽");
+          var duty = body.result.duty;
+          toast("ok", "Неустойка: " + body.result.total_display + " ₽. " +
+            (duty && duty.exempt
+              ? "Госпошлина не платится."
+              : "Госпошлина: " + (duty ? duty.amount_display : "—") + " ₽"));
           openCase(data.id);
         })
         .catch(function (error) { $("recalc-note").textContent = error.message; });

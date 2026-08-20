@@ -149,7 +149,8 @@ CLIENT_ADDRESS_RE = re.compile(
 # нельзя — точки стоят внутри самого адреса: «г. Казань, ул. Халитова, д. 8».
 ADDRESS_TAIL_RE = re.compile(
     r"\s*(?:именуем|далее|с другой стороны|с одной стороны|,\s*действующ"
-    r"|,?\s*снилс|,?\s*инн\b|,?\s*телефон|,?\s*дата выдачи|,?\s*код подразделения"
+    r"|,?\s*снилс|,?\s*инн\b|,?\s*огрн|,?\s*кпп\b|,?\s*в лице"
+    r"|,?\s*телефон|,?\s*дата выдачи|,?\s*код подразделения"
     r"|,?\s*категория земель|,?\s*\d{11,}|\d+\.\d|$)",
     re.IGNORECASE,
 )
@@ -160,6 +161,19 @@ COMPANY_RE = re.compile(
     r"\b(ООО|АО|ПАО|ЗАО|ОАО|Общество с ограниченной ответственностью)\s*"
     r"[«\"‹]{1,2}([\s\S]{2,140}?)[»\"›]{1,2}(?=\s*[,)]|\s+ОГРН|\s+ИНН|\s*$)",
     re.IGNORECASE,
+)
+
+# Адрес застройщика в преамбуле называют по-разному, но всегда именуют:
+# «место нахождения», «юридический адрес» или просто «адрес». Общая форма
+# идёт последней — она же самая рискованная, потому что слово «адрес» в
+# договоре встречается и про объект, и про участок.
+DEVELOPER_ADDRESS_RES = (
+    re.compile(
+        r"(?:мест[оа]\s+нахождени[яе]|юридическ[а-я]{2,3}\s+адрес"
+        r"|адрес\s+места\s+нахождения)\s*(?:\(адрес\))?\s*[:—-]?\s*(.{10,200})",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bадрес\s*[:—-]\s*(.{10,200})", re.IGNORECASE),
 )
 
 # Роль стороны объявляется оборотом «именуемое в дальнейшем «Застройщик»».
@@ -197,6 +211,7 @@ class Requisites:
     developer_name: Optional[str] = None
     developer_inn: Optional[str] = None
     developer_ogrn: Optional[str] = None
+    developer_address: Optional[str] = None
 
     def as_dict(self) -> Dict[str, str]:
         result: Dict[str, str] = {}
@@ -536,6 +551,13 @@ def extract(text: str, doc_type: str = "") -> Requisites:
     ogrn = OGRN_RE.search(developer_block)
     if ogrn:
         result.developer_ogrn = ogrn.group(1)
+
+    flat_developer = re.sub(r"\s+", " ", developer_block)
+    for pattern in DEVELOPER_ADDRESS_RES:
+        address = pattern.search(flat_developer)
+        if address:
+            result.developer_address = _address(address.group(1))
+            break
 
     # Претензия и иск пересказывают договор, и данные из них те же самые.
     # У прочих документов совпадающие числа значат другое: в решении суда

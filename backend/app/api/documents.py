@@ -16,12 +16,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from ..core.calculator import CalculationError, DelayInput, calculate_delay
+from ..core.duty import duty_for_claim
 from ..core.legal_config import store as config_store
 from ..db import DATA_DIR, get_session
 from ..doctype_memory import refine as refine_guess, remember as remember_type
 from ..generation import TemplateError, case_values, catalog as generation_catalog
 from ..generation import render as render_template, store as store_templates
-from ..presenters import result_to_dict
+from ..presenters import format_money, result_to_dict
 from ..documents import (
     DOC_TYPE_BY_CODE,
     FOLDERS,
@@ -75,6 +76,7 @@ APPLICABLE_CLIENT = {
 APPLICABLE_DEVELOPER = {
     "developer_inn": ("inn", "ИНН застройщика"),
     "developer_ogrn": ("ogrn", "ОГРН застройщика"),
+    "developer_address": ("address", "адрес застройщика"),
 }
 
 DATE_FIELDS = {"contract_date", "due_date", "client_birth_date"}
@@ -473,6 +475,21 @@ def calculate_case(
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     payload = result_to_dict(result)
+
+    # Цена иска — только взыскиваемая денежная сумма (статья 91 ГПК): сама
+    # неустойка. Компенсация морального вреда — требование неимущественное,
+    # штраф по Закону о защите прав потребителей суд присуждает сам, а
+    # судебные расходы в цену иска не входят.
+    claim_value = result.amount_of("neustoyka") + result.amount_of("repair_cost")
+    duty = duty_for_claim(claim_value)
+    payload["duty"] = {
+        "amount": str(duty.amount),
+        "amount_display": format_money(duty.amount),
+        "claim_value": str(duty.claim_value),
+        "exempt": duty.exempt,
+        "explanation": duty.explanation,
+    }
+
     record = Calculation(
         mode="delay",
         inputs={
@@ -490,8 +507,10 @@ def calculate_case(
 
     case.calculation_id = record.id
     case.amount_claimed = Decimal(payload["total"])
+    case.duty = duty.amount
     log_event(session, case, actor, "field",
               f"Пересчитана неустойка: {payload['total_display']} ₽")
+    log_event(session, case, actor, "field", f"Госпошлина: {duty.explanation}")
     session.commit()
 
     return {"calculation_id": record.id, "result": payload}

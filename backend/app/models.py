@@ -133,6 +133,22 @@ class Developer(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class TypeHint(Base):
+    """Слово из имени файла и тип документа, которым его назвал юрист.
+
+    Копится из исправлений: правила ошиблись, человек поправил — значит,
+    в имени было слово, по которому он понял тип сразу.
+    """
+
+    __tablename__ = "type_hints"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    word: Mapped[str] = mapped_column(String(60), index=True)
+    doc_type: Mapped[str] = mapped_column(String(32), index=True)
+    weight: Mapped[int] = mapped_column(default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Client(Base):
     __tablename__ = "clients"
 

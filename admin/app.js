@@ -508,13 +508,17 @@
         ? '<span class="pill">скан без текста</span>' : "";
 
       var extra = "";
-      if (extracted.length && !doc.extracted_applied) {
+      var pending = doc.pending || [];
+      if (pending.length && !doc.extracted_applied) {
         extra = '<div class="doc__extract"><span>Нашли в документе: <b>' +
-          extracted.map(function (key) { return esc(FIELD_TITLES[key] || key); }).join(", ") +
+          pending.map(function (key) { return esc(FIELD_TITLES[key] || key); }).join(", ") +
           '</b></span><button type="button" class="btn btn--outline btn--sm" data-apply="' +
           esc(doc.id) + '">Перенести в карточку</button></div>';
       } else if (doc.extracted_applied) {
         extra = '<div class="doc__extract">Реквизиты перенесены в карточку</div>';
+      } else if (extracted.length) {
+        // Кнопки нет: переносить нечего, но сказать почему — стоит.
+        extra = '<div class="doc__extract">Реквизиты из документа уже есть в карточке</div>';
       }
 
       return '<div class="doc" data-review="' + doc.needs_review + '">' +

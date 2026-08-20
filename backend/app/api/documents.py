@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session as DbSession
 from ..core.calculator import CalculationError, DelayInput, calculate_delay
 from ..core.legal_config import store as config_store
 from ..db import DATA_DIR, get_session
+from ..doctype_memory import refine as refine_guess, remember as remember_type
 from ..generation import TemplateError, case_values, catalog as generation_catalog
 from ..generation import render as render_template, store as store_templates
 from ..presenters import result_to_dict
@@ -107,7 +108,41 @@ def _case_root(case: Case) -> Path:
                        case.created_at.date())
 
 
+def _pending_fields(document: Document) -> List[str]:
+    """Поля, которые перенос действительно заполнит.
+
+    Кнопка «Перенести в карточку» имеет смысл, только если после нажатия
+    что-то изменится. Раньше она предлагалась всегда, пока перенос не был
+    сделан, и на заполненной карточке отвечала отказом — это выглядело
+    поломкой, а не отказом по существу.
+    """
+    extracted = document.extracted or {}
+    if not extracted:
+        return []
+
+    case = document.case
+    pending: List[str] = []
+
+    def check(target, field: str, attribute: str) -> None:
+        if target is None or not extracted.get(field):
+            return
+        if getattr(target, attribute, None) in (None, ""):
+            pending.append(field)
+
+    for field in APPLICABLE:
+        check(case, field, field)
+    for field, (attribute, _) in APPLICABLE_CLIENT.items():
+        check(case.client, field, attribute)
+    if case.developer is None and extracted.get("developer_name"):
+        pending.append("developer_name")
+    for field, (attribute, _) in APPLICABLE_DEVELOPER.items():
+        check(case.developer, field, attribute)
+
+    return pending
+
+
 def _document_payload(document: Document) -> dict:
+    pending = _pending_fields(document)
     return {
         "id": document.id,
         "created_at": document.created_at.isoformat(),
@@ -128,6 +163,8 @@ def _document_payload(document: Document) -> dict:
         "is_scan": document.is_scan,
         "extracted": document.extracted or {},
         "extracted_applied": document.extracted_applied,
+        # Что перенос заполнит прямо сейчас. Пусто — переносить нечего.
+        "pending": pending,
         "uploaded_by": document.uploaded_by_name,
         "note": document.note,
     }
@@ -216,7 +253,7 @@ def upload_document(
             code, confidence, signals, detected_by = doc_type, 1.0, "указан вручную", "manual"
             needs_review = False
         else:
-            guess = classify(original_name, text)
+            guess = refine_guess(session, classify(original_name, text), original_name)
             code, confidence = guess.code, guess.confidence
             signals, detected_by = guess.explanation, "rules"
             needs_review = guess.needs_review
@@ -312,6 +349,12 @@ def update_document(
             document.folder = new_folder
             document.stored_name = new_path.name
             document.relative_path = f"{new_folder}/{new_path.name}"
+
+        # Ручной выбор типа — утверждение о таком имени файла, и неважно,
+        # поменялся тип или юрист подтвердил уже стоящий. Подтверждение
+        # усиливает память: со второго раза она начинает спорить даже с
+        # уверенным правилом. Так тип можно и поправить, и «доучить».
+        remember_type(session, document.original_name, code)
 
         document.doc_type = code
         document.detected_by = "manual"

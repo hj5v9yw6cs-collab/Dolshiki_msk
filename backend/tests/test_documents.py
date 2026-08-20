@@ -845,3 +845,75 @@ def test_templates_can_name_the_practice_itself(api_client, staff, case):
     assert values["firm_inn"] == "120101147767"
     assert "Фучика" in values["firm_address"]
     assert values["firm_legal_name"].startswith("Рузайкина")
+
+
+def test_apply_is_not_offered_when_the_card_is_already_full(api_client, staff, case):
+    """Кнопка, которая отвечает отказом, выглядит поломкой, а не отказом."""
+    document = upload(api_client, staff, case).json()
+    assert document["pending"], "сразу после загрузки переносить есть что"
+
+    api_client.post(f"/api/v1/documents/{document['id']}/apply", headers=staff["lawyer"])
+    second = upload(api_client, staff, case, name="дду-копия.txt", content=DDU_BYTES + b" ").json()
+
+    assert second["extracted"], "реквизиты в документе нашлись"
+    assert second["pending"] == [], "но в карточке они уже есть — переносить нечего"
+
+
+# --- обучение на исправлениях ----------------------------------------------
+
+
+def test_a_correction_teaches_the_system_the_practice_wording(api_client, staff, case):
+    """Юрист поправил тип — такой же файл в следующий раз определится сам."""
+    first = upload(api_client, staff, case, name="ои_претензия_иванов.pdf",
+                   content=b"%PDF-1.4 no text").json()
+
+    api_client.patch(
+        f"/api/v1/documents/{first['id']}",
+        json={"doc_type": "claim_tracking"},
+        headers=staff["lawyer"],
+    )
+
+    second = upload(api_client, staff, case, name="ои_претензия_петров.pdf",
+                    content=b"%PDF-1.4 other file").json()
+
+    assert second["doc_type"] == "claim_tracking", second["signals"]
+
+
+def test_hashes_and_service_words_are_not_remembered():
+    """Случайное имя второй раз не встретится, «скан» встретится у всех."""
+    from app.doctype_memory import words
+
+    assert words("ddu-h6xj8aap1rmerfli_365bff277f47b38a0e252b173b16d2fc.pdf") == []
+    assert "скан" not in words("Скан_претензия.pdf")
+    assert "претензия" in words("Скан_претензия.pdf")
+
+
+def test_memory_does_not_argue_with_a_confident_rule_after_one_correction(api_client, staff, case):
+    """Одного исправления мало, чтобы спорить с заголовком документа."""
+    odd = upload(api_client, staff, case, name="важное_письмо.pdf",
+                 content=b"%PDF-1.4 nothing").json()
+    api_client.patch(f"/api/v1/documents/{odd['id']}",
+                     json={"doc_type": "writ"}, headers=staff["lawyer"])
+
+    contract = upload(
+        api_client, staff, case, name="важное_письмо_2.txt",
+        content="ДОГОВОР УЧАСТИЯ В ДОЛЕВОМ СТРОИТЕЛЬСТВЕ № 1\nЗастройщик обязуется передать.".encode(),
+    ).json()
+
+    assert contract["doc_type"] == "ddu", contract["signals"]
+
+
+def test_the_same_word_corrected_twice_outweighs_the_rules(api_client, staff, case):
+    """Дважды исправленное слово — уже не случайность, а привычка практики."""
+    for index in (1, 2):
+        odd = upload(api_client, staff, case, name=f"почтовик_{index}.pdf",
+                     content=f"%PDF-1.4 file {index}".encode()).json()
+        api_client.patch(f"/api/v1/documents/{odd['id']}",
+                         json={"doc_type": "lawsuit_tracking"}, headers=staff["lawyer"])
+
+    contract = upload(
+        api_client, staff, case, name="почтовик_3.txt",
+        content="ДОГОВОР УЧАСТИЯ В ДОЛЕВОМ СТРОИТЕЛЬСТВЕ № 7\nЗастройщик обязуется передать.".encode(),
+    ).json()
+
+    assert contract["doc_type"] == "lawsuit_tracking", contract["signals"]

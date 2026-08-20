@@ -232,28 +232,36 @@ def test_save_stream_returns_size_and_hash(tmp_path):
 
 
 def test_checklist_counts_what_is_missing():
-    checklist = build_checklist("claim", ["ddu"])
+    checklist = build_checklist("claim_wait", ["ddu"])
 
     assert checklist["ready"] is False
-    assert checklist["missing_required"] == 3
+    assert checklist["missing_required"] == 1
     titles = {item["title"]: item["present"] for item in checklist["items"]}
     assert titles["Договор долевого участия"] is True
-    assert titles["Паспорт"] is False
+    assert titles["Претензия застройщику"] is False
 
 
 def test_checklist_is_ready_when_everything_required_is_there():
-    checklist = build_checklist("claim", ["services_contract", "ddu", "payment", "passport"])
+    checklist = build_checklist("claim_wait", ["ddu", "claim"])
 
     assert checklist["ready"] is True
     assert checklist["missing_required"] == 0
 
 
-def test_optional_documents_do_not_block():
-    checklist = build_checklist("claim", ["services_contract", "ddu", "payment", "passport"])
-    optional = [item for item in checklist["items"] if item["optional"]]
+def test_checklist_asks_only_for_the_three_documents():
+    """Практика проверяет ДДУ, претензию и исковое; остальное не спрашиваем.
 
-    assert optional, "необязательные пункты должны быть в списке"
-    assert checklist["ready"] is True
+    Красный значок должен означать «дальше идти нельзя». Пункт про паспорт
+    или квитанцию держал бы карточку красной там, где всё в порядке, — и на
+    значок перестали бы смотреть.
+    """
+    asked = {
+        item["doc_type"]
+        for stage in ("new", "claim", "claim_wait", "documents", "suit_filed", "hearings")
+        for item in build_checklist(stage, [])["items"]
+    }
+
+    assert asked == {"ddu", "claim", "lawsuit"}
 
 
 def test_suit_stage_requires_more_than_claim_stage():
@@ -431,16 +439,16 @@ def test_deleting_removes_file_and_is_logged(api_client, staff, case):
 
 
 def test_checklist_only_counts_confirmed_documents(api_client, staff, case):
-    """Догадка «похоже на паспорт» не должна закрывать пункт комплектности."""
-    upload(api_client, staff, case, name="паспорт.jpg", content=b"\xff\xd8\xff\xe0")
+    """Догадка «похоже на ДДУ» не должна закрывать пункт комплектности."""
+    upload(api_client, staff, case, name="дду.jpg", content=b"\xff\xd8\xff\xe0")
 
     listed = api_client.get(
         f"/api/v1/cases/{case['id']}/documents", headers=staff["lawyer"]
     ).json()
-    passport = next(
-        item for item in listed["checklist"]["items"] if item["doc_type"] == "passport"
+    ddu = next(
+        item for item in listed["checklist"]["items"] if item["doc_type"] == "ddu"
     )
-    assert passport["present"] is False
+    assert ddu["present"] is False
 
 
 def test_upload_requires_login(api_client, staff, case):

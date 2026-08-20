@@ -1,8 +1,8 @@
 """Комплектность документов по стадиям дела.
 
-Отвечает на вопрос «чего не хватает, чтобы идти дальше». Наборы разные:
-для претензии достаточно договора и подтверждения оплаты, для иска нужен
-уже полный комплект.
+Отвечает на вопрос «чего не хватает, чтобы идти дальше», и только на
+него. Проверяются три документа — ДДУ, претензия, исковое, — а не весь
+подшиваемый комплект: остальное практика собирает и без напоминаний.
 """
 
 from __future__ import annotations
@@ -21,31 +21,23 @@ class Requirement:
 
 
 BY_STAGE: Dict[str, List[Requirement]] = {
+    # Проверяются три документа, а не весь комплект. Остальное — паспорт,
+    # договор услуг, квитанция, отчёты об отслеживании — практика собирает
+    # и без напоминаний, и требовать их значило бы держать карточку красной
+    # там, где на самом деле всё в порядке. Красный значок должен означать
+    # «дальше идти нельзя», иначе на него перестают смотреть.
     "claim": [
-        Requirement("services_contract", "Без него мы не начинаем работу"),
         Requirement("ddu", "Основание требований"),
-        Requirement("payment", "Подтверждение оплаты по договору"),
-        Requirement("passport", "Данные для претензии и доверенности"),
-        Requirement("act", "Подтверждает дату передачи", optional=True),
-        Requirement("expert_report", "Для требований по недостаткам", optional=True),
     ],
-    # Порядок — тот, в котором комплект подшивается для подачи. Список
-    # обязательных совпадает с описанным на сайте, чтобы клиент и юрист
-    # видели одно и то же.
-    "suit_filed": [
-        Requirement("lawsuit", "Само требование к застройщику"),
-        Requirement("lawsuit_tracking", "Доказательство направления иска ответчику"),
-        Requirement("passport", "Данные истца"),
+    "claim_wait": [
         Requirement("ddu", "Основание требований"),
         Requirement("claim", "Досудебный порядок"),
-        Requirement("claim_tracking", "Доказательство направления претензии"),
-        Requirement("services_contract", "Основание судебных расходов"),
-        Requirement("fee_receipt", "Размер судебных расходов"),
-        Requirement("payment", "Подтверждение оплаты по ДДУ", optional=True),
-        Requirement("power_of_attorney", "Если дело ведёт представитель", optional=True),
-        Requirement("developer_reply", "Если ответ был", optional=True),
-        Requirement("act", "Подтверждает дату передачи", optional=True),
-        Requirement("expert_report", "Для требований по недостаткам", optional=True),
+    ],
+    # Порядок — тот, в котором комплект подшивается для подачи.
+    "suit_filed": [
+        Requirement("lawsuit", "Само требование к застройщику"),
+        Requirement("ddu", "Основание требований"),
+        Requirement("claim", "Досудебный порядок"),
     ],
     "writ": [
         Requirement("court_decision", "Основание для исполнительного листа"),
@@ -55,7 +47,7 @@ BY_STAGE: Dict[str, List[Requirement]] = {
 # Стадии без своего набора проверяются по ближайшей, где набор задан.
 FALLBACK = {
     "new": "claim", "qualification": "claim", "contract": "claim", "documents": "claim",
-    "claim_wait": "claim", "expertise": "suit_filed", "hearings": "suit_filed",
+    "expertise": "suit_filed", "hearings": "suit_filed",
     "decision": "writ", "money": "writ", "closed": "writ", "rejected": "claim",
 }
 

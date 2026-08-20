@@ -80,7 +80,7 @@ class Content:
 
     def all_urls(self) -> List[str]:
         """Адреса всех публичных страниц — для карты сайта."""
-        urls = ["/", "/praktika", "/kontakty", "/politika", "/soglasie"]
+        urls = ["/", "/praktika", "/kontakty", "/politika", "/soglasie", "/cookies"]
         for page in self.pages:
             urls.append(f"/{page['slug']}")
             for region in page.get("regions", []):

@@ -124,6 +124,30 @@ def test_policy_names_a_retention_period(api_client):
     assert "должен определить юрист" not in page
 
 
+def test_cookies_page_is_published_and_linked(api_client):
+    page = html(api_client, "/cookies")
+
+    assert "не использует файлы cookie" in page
+    assert "localStorage" in page, "не объяснено, что всё же хранится в браузере"
+    # Страницу должно быть видно из подвала любой страницы, иначе её не найдут.
+    assert '"/cookies"' in html(api_client, "/") or 'href="/cookies"' in html(api_client, "/")
+
+
+def test_public_pages_set_no_cookies(api_client):
+    """Страница про cookie утверждает, что их нет. Это утверждение и проверяется.
+
+    Если когда-нибудь на публичный сайт добавят счётчик или сессию, тест
+    упадёт — и текст придётся переписать раньше, чем он станет неправдой.
+    """
+    for path in ("/", "/praktika", "/kontakty", "/cookies", "/neustoyka"):
+        response = api_client.get(path)
+        assert "set-cookie" not in {name.lower() for name in response.headers}, path
+
+
+def test_cookies_page_is_in_the_sitemap(api_client):
+    assert "/cookies</loc>" in api_client.get("/sitemap.xml").text
+
+
 def test_contacts_page_shows_requisites(api_client):
     page = html(api_client, "/kontakty")
 

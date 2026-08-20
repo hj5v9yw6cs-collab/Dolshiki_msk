@@ -206,6 +206,23 @@ def consent(request: Request, data: Content = Depends(content)) -> HTMLResponse:
     )
 
 
+@router.get("/cookies", response_class=HTMLResponse)
+def cookies(request: Request, data: Content = Depends(content)) -> HTMLResponse:
+    from .legal import cookies_html
+
+    page = {
+        "h1": "Файлы cookie",
+        "title": "Файлы cookie",
+        "description": "Сайт не использует файлы cookie. Что именно сохраняется в браузере и что записывается на сервере.",
+        "lead": "",
+    }
+    crumbs = [{"title": "Главная", "url": "/"}, {"title": "Файлы cookie", "url": "/cookies"}]
+    return render(
+        request, "legal.html", data=data, page=page, path="/cookies",
+        crumbs=crumbs, with_form=False, body_html=cookies_html(data),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Служебные адреса объявляются до общего маршрута /{slug}: FastAPI подбирает
 # обработчики по порядку, и иначе robots.txt и sitemap.xml были бы приняты
